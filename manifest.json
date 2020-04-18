@@ -1,0 +1,21 @@
+{
+  "name": "dominion-mystic",
+  "version": "0.0.1",
+  "manifest_version": 2,
+  "description": "Track the state of your discard pile in games played on the dominion.games website.",
+  "homepage_url": "https://github.com/IvanMalison/dominion-mystic",
+  "content_scripts": [
+    {
+      "matches": ["http://*.dominion.games/*", "https://*.dominion.games/*"],
+      "js": ["dist/index.js"]
+    }
+  ],
+  "permissions": [
+    "activeTab",
+    "chrome://favicon/*",
+    "tabs",
+    "http://localhost/",
+    "http://*/*",
+    "https://*/*"
+  ]
+}
