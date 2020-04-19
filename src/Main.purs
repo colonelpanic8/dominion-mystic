@@ -1,7 +1,6 @@
 module Main where
 
 import Prelude
-import Data.Maybe as Maybe
 import Dominion.Mystic.Log.DOM as DOM
 import Dominion.Mystic.Log.Parse as Parse
 import Effect (Effect)
@@ -10,18 +9,15 @@ import Web.DOM.Element as Element
 import Web.HTML as HTML
 import Web.HTML.HTMLDocument as HTMLDocument
 import Web.HTML.Window as Window
-import Debug.Trace as Trace
 
 main :: Effect Unit
 main = do
-  Console.log "Logging output of empty parseLine"
+  Console.log "Actually logging deck updates"
   document <- HTMLDocument.toDocument <$> (Window.document =<< HTML.window)
-  DOM.onLogContainerElement document ((DOM.handleLogUpdates Console.log) <<< Element.toNode)
-  elem <- DOM.getLogContainerElement document
-  Maybe.maybe (pure unit)
-    ( DOM.handleLogUpdates
+  let
+    handleNodeElements =
+      DOM.handleLogUpdates
         $ \line -> do
+            Console.log $ "Deck updates: " <> (show $ Parse.getDeckUpdates line)
             Console.log line
-            Trace.traceM $ Parse.getDeckUpdates line
-    )
-    (Element.toNode <$> elem)
+  DOM.onLogContainerElement document (handleNodeElements <<< Element.toNode)

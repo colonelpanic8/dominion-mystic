@@ -5,7 +5,6 @@ import Data.Array as Array
 import Data.Either (either)
 import Data.Formatter.Parser.Number (parseInteger)
 import Data.List as List
-import Data.Maybe as M
 import Data.String.CodeUnits as SCU
 import Data.Tuple as Tuple
 import Dominion.Mystic.Data as Data
@@ -19,7 +18,8 @@ getDeckUpdates :: String -> Array Data.DeckUpdate
 getDeckUpdates input = either (const []) identity $ Parser.runParser input parseLine
 
 parseLine :: Parser String (Array Data.DeckUpdate)
-parseLine =
+parseLine = do
+  String.skipSpaces
   Combinators.choice
     [ Combinators.try parseShuffle
     , Combinators.try parseWish

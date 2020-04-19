@@ -81,6 +81,13 @@ parseSpec =
               [ Tuple 1 $ Data.Card "Gold"
               , Tuple 3 $ Data.Card "Copper"
               ]
+      it "handles leading whitespace" do
+        expectParseLine
+          "   E reveals a Mystic and 2 Provinces."
+          $ Data.Reveals (Data.Player "E")
+              [ Tuple 1 $ Data.Card "Mystic"
+              , Tuple 2 $ Data.Card "Province"
+              ]
       it "handles reveals" do
         expectParseLine
           "E reveals a Mystic and 2 Provinces."
