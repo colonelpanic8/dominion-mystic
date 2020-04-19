@@ -17,14 +17,17 @@ expectSuccessfulParsing parser input expected = (runParser input parser) `should
 expectParseLine :: String -> Data.DeckUpdate -> Aff Unit
 expectParseLine input expected = expectSuccessfulParsing Parse.parseLine input [ expected ]
 
+c :: Int -> String -> Data.CardQuantity
+c quantity name = Tuple (Data.Card name) quantity
+
 parseSpec :: Spec Unit
 parseSpec =
   describe "Parsing" do
     let
       shelters =
-        [ Tuple 1 $ Data.Card "Hovel"
-        , Tuple 1 $ Data.Card "Necropolis"
-        , Tuple 1 $ Data.Card "Overgrown Estate"
+        [ c 1 "Hovel"
+        , c 1 "Necropolis"
+        , c 1 "Overgrown Estate"
         ]
     describe "parseLine" do
       it "handles gains" do
@@ -38,7 +41,7 @@ parseSpec =
       it "handles exiles" do
         expectParseLine
           "Edi exiles a Horse"
-          $ Data.Exiles (Data.Player "Edi") [ Tuple 1 $ Data.Card "Horse" ]
+          $ Data.Exiles (Data.Player "Edi") [ c 1 "Horse" ]
       it "handles shuffle" do
         expectParseLine
           "K shuffles their deck."
@@ -48,52 +51,52 @@ parseSpec =
         expectParseLine
           "L topdecks 2 Coppers and a Silver."
           $ Data.Topdecks (Data.Player "L")
-              [ Tuple 2 $ Data.Card "Copper"
-              , Tuple 1 $ Data.Card "Silver"
+              [ c 2 "Copper"
+              , c 1 "Silver"
               ]
       it "handles wishing" do
         expectParseLine
           "E wishes for Ironmonger and finds it."
-          $ Data.Draws (Data.Player "E") [ Tuple 1 $ Data.Card "Ironmonger" ]
+          $ Data.Draws (Data.Player "E") [ c 1 "Ironmonger" ]
       it "handles returns" do
         expectParseLine
           "E returns an Estate to the Estate pile."
-          $ Data.Returns (Data.Player "E") [ Tuple 1 $ Data.Card "Estate" ]
+          $ Data.Returns (Data.Player "E") [ c 1 "Estate" ]
       it "handles returns with no pile mention" do
         expectParseLine
           "E returns a Horse."
-          $ Data.Returns (Data.Player "E") [ Tuple 1 $ Data.Card "Horse" ]
+          $ Data.Returns (Data.Player "E") [ c 1 "Horse" ]
       it "handles looks at" do
         expectParseLine
           "E looks at 3 Estates, 3 Horses, an Ambassador, a Changeling, 5 Coppers and 4 Sleighs."
           $ Data.LooksAt (Data.Player "E")
-              [ Tuple 3 $ Data.Card "Estate"
-              , Tuple 3 $ Data.Card "Horse"
-              , Tuple 1 $ Data.Card "Ambassador"
-              , Tuple 1 $ Data.Card "Changeling"
-              , Tuple 5 $ Data.Card "Copper"
-              , Tuple 4 $ Data.Card "Sleigh"
+              [ c 3 "Estate"
+              , c 3 "Horse"
+              , c 1 "Ambassador"
+              , c 1 "Changeling"
+              , c 5 "Copper"
+              , c 4 "Sleigh"
               ]
       it "handles plays" do
         expectParseLine
           "L plays a Gold and 3 Coppers."
           $ Data.Plays (Data.Player "L")
-              [ Tuple 1 $ Data.Card "Gold"
-              , Tuple 3 $ Data.Card "Copper"
+              [ c 1 "Gold"
+              , c 3 "Copper"
               ]
       it "handles leading whitespace" do
         expectParseLine
           "   E reveals a Mystic and 2 Provinces."
           $ Data.Reveals (Data.Player "E")
-              [ Tuple 1 $ Data.Card "Mystic"
-              , Tuple 2 $ Data.Card "Province"
+              [ c 1 "Mystic"
+              , c 2 "Province"
               ]
       it "handles reveals" do
         expectParseLine
           "E reveals a Mystic and 2 Provinces."
           $ Data.Reveals (Data.Player "E")
-              [ Tuple 1 $ Data.Card "Mystic"
-              , Tuple 2 $ Data.Card "Province"
+              [ c 1 "Mystic"
+              , c 2 "Province"
               ]
     describe "parseCardsList" do
       it "handles a list of cards separated by commas and an \"and\"" do
@@ -103,25 +106,25 @@ parseSpec =
       it "handles depluralization exceptions" do
         expectSuccessfulParsing Parse.parseCardList
           "3 Nobles, a Hovel."
-          [ Tuple 3 $ Data.Card "Nobles"
-          , Tuple 1 $ Data.Card "Hovel"
+          [ c 3 "Nobles"
+          , c 1 "Hovel"
           ]
       it "handles pluralization exceptions" do
         expectSuccessfulParsing Parse.parseCardList
           "3 Emporia, a Hovel."
-          [ Tuple 3 $ Data.Card "Emporium"
-          , Tuple 1 $ Data.Card "Hovel"
+          [ c 3 "Emporium"
+          , c 1 "Hovel"
           ]
       it "handles quantities of a card other than one and depluralizes" do
         expectSuccessfulParsing Parse.parseCardList
           "3 Coppers, a Hovel and an Overgrown Estate."
-          [ Tuple 3 $ Data.Card "Copper"
-          , Tuple 1 $ Data.Card "Hovel"
-          , Tuple 1 $ Data.Card "Overgrown Estate"
+          [ c 3 "Copper"
+          , c 1 "Hovel"
+          , c 1 "Overgrown Estate"
           ]
       it "can handle a list with no terminating period" do
         expectSuccessfulParsing Parse.parseCardList
           "3 Coppers and 2 Horses"
-          [ Tuple 3 $ Data.Card "Copper"
-          , Tuple 2 $ Data.Card "Horse"
+          [ c 3 "Copper"
+          , c 2 "Horse"
           ]

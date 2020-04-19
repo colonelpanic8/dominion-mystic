@@ -51,7 +51,7 @@ instance showPlayer :: Show Player where
   show x = genericShow x
 
 type CardQuantity
-  = Tuple Int Card
+  = Tuple Card Int
 
 type CardList
   = Array CardQuantity

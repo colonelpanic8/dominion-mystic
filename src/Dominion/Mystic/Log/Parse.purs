@@ -46,7 +46,7 @@ parseWish = do
   _ <- String.string "wishes for"
   String.skipSpaces
   cardName <- parseStringTill $ String.string " and finds it."
-  pure $ pure $ Data.Draws player [ Tuple.Tuple 1 $ Data.Card cardName ]
+  pure $ pure $ Data.Draws player [ Tuple.Tuple (Data.Card cardName) 1 ]
 
 parseShuffle :: Parser String (Array Data.DeckUpdate)
 parseShuffle = do
@@ -91,7 +91,7 @@ parseCardList :: Parser String Data.CardList
 parseCardList = map dePluralize <$> Array.many parseCardNameQuantity
 
 dePluralize :: Tuple.Tuple Int String -> Data.CardQuantity
-dePluralize info = Tuple.Tuple quantity card
+dePluralize info = Tuple.Tuple card quantity
   where
   quantity = Tuple.fst info
 
