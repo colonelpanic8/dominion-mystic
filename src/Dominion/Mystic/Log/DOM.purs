@@ -1,4 +1,4 @@
-module Dominion.Log.DOM where
+module Dominion.Mystic.Log.DOM where
 
 import Data.Array (head, concat, catMaybes)
 import Data.Foldable (foldM)

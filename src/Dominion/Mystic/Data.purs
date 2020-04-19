@@ -1,4 +1,4 @@
-module Dominion.Data where
+module Dominion.Mystic.Data where
 
 import Data.Generic.Rep
 

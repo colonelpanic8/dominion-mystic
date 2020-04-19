@@ -1,11 +1,11 @@
-module Dominion.Log.ParseSpec where
+module Dominion.Mystic.Log.ParseSpec where
 
 import Prelude
 
 import Data.Either (Either(..))
 import Data.Tuple (Tuple(..))
-import Dominion.Data as Data
-import Dominion.Log.Parse as Parse
+import Dominion.Mystic.Data as Data
+import Dominion.Mystic.Log.Parse as Parse
 import Effect.Aff (Aff)
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (shouldEqual)

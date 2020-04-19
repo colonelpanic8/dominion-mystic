@@ -3,8 +3,8 @@ module Main where
 import Prelude
 
 import Data.Maybe as Maybe
-import Dominion.Log.DOM as DOM
-import Dominion.Log.Parse as Parse
+import Dominion.Mystic.Log.DOM as DOM
+import Dominion.Mystic.Log.Parse as Parse
 import Effect (Effect)
 import Effect.Console as Console
 import Web.DOM.Element as Element

@@ -1,4 +1,4 @@
-module Dominion.Log.Parse where
+module Dominion.Mystic.Log.Parse where
 
 import Prelude
 
@@ -11,7 +11,7 @@ import Data.String as S
 import Data.String.CodeUnits as SCU
 import Data.String.Pattern (Pattern(..))
 import Data.Tuple as Tuple
-import Dominion.Data as Data
+import Dominion.Mystic.Data as Data
 import Text.Parsing.Parser (Parser)
 import Text.Parsing.Parser as Parser
 import Text.Parsing.Parser.Combinators as Combinators
