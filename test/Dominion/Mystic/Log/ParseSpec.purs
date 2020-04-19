@@ -16,30 +16,91 @@ expectSuccessfulParsing ::
 expectSuccessfulParsing parser input expected =
   (runParser input parser) `shouldEqual` (Right expected)
 
+expectParseLine :: String -> Data.DeckUpdate -> Aff Unit
+expectParseLine input expected = expectSuccessfulParsing Parse.parseLine input [expected]
+
 parseSpec :: Spec Unit
 parseSpec = describe "Parsing" do
-  let shelters = [ Tuple 1 $ Data.Card "Hovel"
-                 , Tuple 1 $ Data.Card "Necropolis"
-                 , Tuple 1 $ Data.Card "Overgrown Estate"
-                 ]
+  let shelters =
+        [ Tuple 1 $ Data.Card "Hovel"
+        , Tuple 1 $ Data.Card "Necropolis"
+        , Tuple 1 $ Data.Card "Overgrown Estate"
+        ]
   describe "parseLine" do
     it "handles gains" do
-      expectSuccessfulParsing Parse.parseLine
-        "E starts with a Hovel, a Necropolis and an Overgrown Estate."
-        [(Data.Gains (Data.Player "E") shelters)]
+      expectParseLine
+        "E starts with a Hovel, a Necropolis and an Overgrown Estate." $
+        Data.Gains (Data.Player "E") shelters
     it "handles trashing" do
-      expectSuccessfulParsing Parse.parseLine
-        "E trashes a Hovel, a Necropolis and an Overgrown Estate."
-        [(Data.Trashes (Data.Player "E") shelters)]
+      expectParseLine
+        "E trashes a Hovel, a Necropolis and an Overgrown Estate." $
+        Data.Trashes (Data.Player "E") shelters
     it "handles exiles" do
-      expectSuccessfulParsing Parse.parseLine
-        "Edi exiles a Horse"
-        [(Data.Exiles (Data.Player "Edi") [ Tuple 1 $ Data.Card "Horse" ])]
+      expectParseLine
+        "Edi exiles a Horse" $
+        Data.Exiles (Data.Player "Edi") [ Tuple 1 $ Data.Card "Horse" ]
+    it "handles shuffle" do
+      expectParseLine
+        "K shuffles their deck." $
+        Data.Shuffles $ Data.Player "K"
+    it "handles topdecks" do
+      expectParseLine
+        "L topdecks 2 Coppers and a Silver." $
+        Data.Topdecks (Data.Player "L")
+        [ Tuple 2 $ Data.Card "Copper"
+        , Tuple 1 $ Data.Card "Silver"
+        ]
+    it "handles wishing" do
+      expectParseLine
+         "E wishes for Ironmonger and finds it." $
+        Data.Draws (Data.Player "E") [Tuple 1 $ Data.Card "Ironmonger"]
+    it "handles returns" do
+      expectParseLine
+        "E returns an Estate to the Estate pile." $
+        Data.Returns (Data.Player "E") [Tuple 1 $ Data.Card "Estate"]
+    it "handles returns with no pile mention" do
+      expectParseLine
+        "E returns a Horse." $
+        Data.Returns (Data.Player "E") [Tuple 1 $ Data.Card "Horse"]
+    it "handles looks at" do
+      expectParseLine
+        "E looks at 3 Estates, 3 Horses, an Ambassador, a Changeling, 5 Coppers and 4 Sleighs." $
+        Data.LooksAt (Data.Player "E")
+        [ Tuple 3 $ Data.Card "Estate"
+        , Tuple 3 $ Data.Card "Horse"
+        , Tuple 1 $ Data.Card "Ambassador"
+        , Tuple 1 $ Data.Card "Changeling"
+        , Tuple 5 $ Data.Card "Copper"
+        , Tuple 4 $ Data.Card "Sleigh"
+        ]
+    it "handles plays" do
+      expectParseLine
+        "E plays a Mystic." $
+        Data.Plays (Data.Player "E") (Data.Card "Mystic")
+    it "handles reveals" do
+      expectParseLine
+        "E reveals a Mystic and 2 Provinces." $
+        Data.Reveals (Data.Player "E")
+        [ Tuple 1 $ Data.Card "Mystic"
+        , Tuple 2 $ Data.Card "Province"
+        ]
   describe "parseCardsList" do
     it "handles a list of cards separated by commas and an \"and\"" do
       expectSuccessfulParsing Parse.parseCardList
         "a Hovel, a Necropolis and an Overgrown Estate."
         shelters
+    it "handles depluralization exceptions" do
+      expectSuccessfulParsing Parse.parseCardList
+        "3 Nobles, a Hovel."
+        [ Tuple 3 $ Data.Card "Nobles"
+        , Tuple 1 $ Data.Card "Hovel"
+        ]
+    it "handles pluralization exceptions" do
+      expectSuccessfulParsing Parse.parseCardList
+        "3 Emporia, a Hovel."
+        [ Tuple 3 $ Data.Card "Emporium"
+        , Tuple 1 $ Data.Card "Hovel"
+        ]
     it "handles quantities of a card other than one and depluralizes" do
       expectSuccessfulParsing Parse.parseCardList
         "3 Coppers, a Hovel and an Overgrown Estate."
