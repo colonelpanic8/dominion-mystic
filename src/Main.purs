@@ -1,7 +1,6 @@
 module Main where
 
 import Prelude
-
 import Data.Maybe as Maybe
 import Dominion.Mystic.Log.DOM as DOM
 import Dominion.Mystic.Log.Parse as Parse
@@ -20,8 +19,9 @@ main = do
   DOM.onLogContainerElement document ((DOM.handleLogUpdates Console.log) <<< Element.toNode)
   elem <- DOM.getLogContainerElement document
   Maybe.maybe (pure unit)
-    (DOM.handleLogUpdates $ \line ->
-      do
-        Console.log line
-        Trace.traceM $ Parse.getDeckUpdates line)
+    ( DOM.handleLogUpdates
+        $ \line -> do
+            Console.log line
+            Trace.traceM $ Parse.getDeckUpdates line
+    )
     (Element.toNode <$> elem)
