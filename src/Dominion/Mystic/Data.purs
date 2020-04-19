@@ -76,3 +76,39 @@ derive instance eqDeckUpdate :: Eq DeckUpdate
 
 instance showDeckUpdate :: Show DeckUpdate where
   show x = genericShow x
+
+type CountsByCardType
+  = Map.Map Card Int
+
+data Deck
+  = Deck
+    { discard :: CountsByCardType
+    , deck :: CountsByCardType
+    , play :: CountsByCardType
+    , exile :: CountsByCardType
+    , tavern :: CountsByCardType
+    , island :: CountsByCardType
+    }
+
+derive instance genericDeck :: Generic Deck _
+
+derive instance eqDeck :: Eq Deck
+
+instance showDeck :: Show Deck where
+  show x = genericShow x
+
+type PlayerState
+  = Deck
+
+data GameState
+  = GameState
+    { stateByPlayer :: Map.Map Player PlayerState
+    , hasCurrentTurn :: Player
+    }
+
+derive instance genericGameState :: Generic GameState _
+
+derive instance eqGameState :: Eq GameState
+
+instance showGameState :: Show GameState where
+  show x = genericShow x
