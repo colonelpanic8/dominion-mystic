@@ -1,8 +1,9 @@
 module Dominion.Mystic.Log.DOM where
 
-import Data.Array (head, concat, catMaybes)
+import Data.Array as Array
 import Data.Foldable (foldM)
 import Data.Maybe (Maybe(..))
+import Data.Maybe as Maybe
 import Data.Traversable (traverse, traverse_)
 import Effect (Effect)
 import Prelude
@@ -18,7 +19,7 @@ import Web.DOM.NodeList as NodeList
 
 getLogContainerElement :: Document -> Effect (Maybe Element)
 getLogContainerElement document = do
-  head
+  Array.head
     <$> ( Document.getElementsByClassName "game-log" document
           >>= HTMLCollection.toArray
       )
@@ -28,7 +29,7 @@ onLogContainerElement document callback = do
   observer <-
     MutationObserver.mutationObserver
       ( \records observer -> do
-          (traverse_ callback <<< catMaybes)
+          (traverse_ callback <<< Array.catMaybes)
             =<< traverse getLogContainerFromRecord records
           e <- getLogContainerElement document
           case e of
@@ -45,7 +46,7 @@ onLogContainerElement document callback = do
 getLogContainerFromRecord :: MutationRecord -> Effect (Maybe Element)
 getLogContainerFromRecord record = do
   elements <-
-    (catMaybes <<< (map Element.fromNode))
+    (Array.catMaybes <<< (map Element.fromNode))
       <$> (addedNodes record >>= NodeList.toArray)
   foldM doFind Nothing elements
   where
@@ -60,9 +61,12 @@ getLogContainerFromRecord record = do
   doFind result _ = pure result
 
 elementIsLogContainer :: Element -> Effect Boolean
-elementIsLogContainer element = do
+elementIsLogContainer = elementHasClass "game-log"
+
+elementHasClass :: String -> Element -> Effect Boolean
+elementHasClass klass element = do
   classes <- Element.classList element
-  DOMTokenList.contains classes "game-log"
+  DOMTokenList.contains classes klass
 
 handleLogUpdates :: (String -> Effect Unit) -> Node -> Effect Unit
 handleLogUpdates callback logContainerNode = do
@@ -74,8 +78,18 @@ handleLogUpdates callback logContainerNode = do
   MutationObserver.observe logContainerNode { childList: true, subtree: true } observer
 
 getLinesFromRecords :: Array MutationRecord -> Effect (Array String)
-getLinesFromRecords records = concat <$> (traverse getLinesFromRecord records)
+getLinesFromRecords records = Array.concat <$> (traverse getLinesFromRecord records)
 
 getLinesFromRecord :: MutationRecord -> Effect (Array String)
 getLinesFromRecord record = do
-  addedNodes record >>= NodeList.toArray >>= traverse Node.textContent
+  addedNodes record
+    >>= NodeList.toArray
+    >>= filterToLogLines
+    >>= traverse Node.textContent
+  where
+  filterToLogLines =
+    Array.filterA
+      ( Maybe.maybe (pure false)
+          (elementHasClass "actual-log")
+          <<< Element.fromNode
+      )
