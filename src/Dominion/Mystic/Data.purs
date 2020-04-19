@@ -42,18 +42,18 @@ type CardQuantity = Tuple Int Card
 type CardList = Array CardQuantity
 
 data DeckUpdate
-  = Gains Player CardList
-  | Draws Player CardList
-  | Trashes Player CardList
-  | Exiles Player CardList
-  | Discards Player CardList
-  | Topdecks Player CardList
-  | Reveals Player CardList
-  | Returns Player CardList
-  | PutsIntoHand Player CardList
+  = Shuffles Player
   | Plays Player Card
+  | Discards Player CardList
+  | Draws Player CardList
+  | Exiles Player CardList
+  | Gains Player CardList
   | LooksAt Player CardList
-  | Shuffles Player
+  | PutsIntoHand Player CardList
+  | Returns Player CardList
+  | Reveals Player CardList
+  | Topdecks Player CardList
+  | Trashes Player CardList
 
 derive instance genericDeckUpdate :: Generic DeckUpdate _
 derive instance eqDeckUpdate :: Eq DeckUpdate

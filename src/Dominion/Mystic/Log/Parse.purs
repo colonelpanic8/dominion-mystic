@@ -22,22 +22,22 @@ getDeckUpdates input = either (const []) identity $ Parser.runParser input parse
 parseLine :: Parser String (Array Data.DeckUpdate)
 parseLine =
   Combinators.choice
-  [ parseCardListAction Data.Gains "starts with"
-  , parseCardListAction Data.Gains "gains"
-  , parseCardListAction Data.Exiles "exiles"
-  , parseCardListAction Data.Trashes "trashes"
-  , parseCardListAction Data.Discards "discards"
-  , parseCardListAction Data.Draws "draws"
-  , parseCardListAction Data.Topdecks "topdecks"
-  , parseCardListAction Data.LooksAt "looks at"
-  , parseCardListAction Data.Reveals "reveals"
-  , parseCardListAction Data.Returns "returns"
+  [ Combinators.try parseShuffle
   , parseCardListAction (\player cards -> case Array.head cards of
                             M.Just (Tuple.Tuple _ card) -> Data.Plays player card
                             -- This branch should be unreachable but would be nice to remove
                             _ -> Data.Plays player $ Data.Card "") "plays"
   , Combinators.try parseWish
-  , Combinators.try parseShuffle
+  , parseCardListAction Data.Discards "discards"
+  , parseCardListAction Data.Draws "draws"
+  , parseCardListAction Data.Exiles "exiles"
+  , parseCardListAction Data.Gains "gains"
+  , parseCardListAction Data.Gains "starts with"
+  , parseCardListAction Data.LooksAt "looks at"
+  , parseCardListAction Data.Returns "returns"
+  , parseCardListAction Data.Reveals "reveals"
+  , parseCardListAction Data.Topdecks "topdecks"
+  , parseCardListAction Data.Trashes "trashes"
   ]
 
 parsePlayer :: Parser String Data.Player
