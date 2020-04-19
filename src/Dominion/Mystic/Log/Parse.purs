@@ -22,13 +22,6 @@ parseLine :: Parser String (Array Data.DeckUpdate)
 parseLine =
   Combinators.choice
     [ Combinators.try parseShuffle
-    , parseCardListAction
-        ( \player cards -> case Array.head cards of
-            M.Just (Tuple.Tuple _ card) -> Data.Plays player card
-            -- This branch should be unreachable but would be nice to remove
-            _ -> Data.Plays player $ Data.Card ""
-        )
-        "plays"
     , Combinators.try parseWish
     , parseCardListAction Data.Discards "discards"
     , parseCardListAction Data.Draws "draws"
@@ -36,6 +29,7 @@ parseLine =
     , parseCardListAction Data.Gains "gains"
     , parseCardListAction Data.Gains "starts with"
     , parseCardListAction Data.LooksAt "looks at"
+    , parseCardListAction Data.Plays "plays"
     , parseCardListAction Data.Returns "returns"
     , parseCardListAction Data.Reveals "reveals"
     , parseCardListAction Data.Topdecks "topdecks"

@@ -58,12 +58,12 @@ type CardList
 
 data DeckUpdate
   = Shuffles Player
-  | Plays Player Card
   | Discards Player CardList
   | Draws Player CardList
   | Exiles Player CardList
   | Gains Player CardList
   | LooksAt Player CardList
+  | Plays Player CardList
   | PutsIntoHand Player CardList
   | Returns Player CardList
   | Reveals Player CardList

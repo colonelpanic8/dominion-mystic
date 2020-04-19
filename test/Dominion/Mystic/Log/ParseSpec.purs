@@ -76,8 +76,11 @@ parseSpec =
               ]
       it "handles plays" do
         expectParseLine
-          "E plays a Mystic."
-          $ Data.Plays (Data.Player "E") (Data.Card "Mystic")
+          "L plays a Gold and 3 Coppers."
+          $ Data.Plays (Data.Player "L")
+              [ Tuple 1 $ Data.Card "Gold"
+              , Tuple 3 $ Data.Card "Copper"
+              ]
       it "handles reveals" do
         expectParseLine
           "E reveals a Mystic and 2 Provinces."
