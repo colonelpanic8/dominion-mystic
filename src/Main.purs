@@ -23,5 +23,5 @@ main = do
     (DOM.handleLogUpdates $ \line ->
       do
         Console.log line
-        Trace.traceM $ Parse.parseLine line)
+        Trace.traceM $ Parse.getDeckUpdates line)
     (Element.toNode <$> elem)
