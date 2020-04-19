@@ -7,7 +7,7 @@ import Data.Traversable (traverse, traverse_)
 import Effect (Effect)
 import Prelude
 import Web.DOM (Document, Element, Node)
-import Web.DOM.DOMTokenList (contains)
+import Web.DOM.DOMTokenList as DOMTokenList
 import Web.DOM.Document as Document
 import Web.DOM.Element as Element
 import Web.DOM.HTMLCollection as HTMLCollection
@@ -18,7 +18,8 @@ import Web.DOM.NodeList as NodeList
 
 getLogContainerElement :: Document -> Effect (Maybe Element)
 getLogContainerElement document = do
-  head <$> (Document.getElementsByClassName "game-log" document >>= HTMLCollection.toArray)
+  head <$> (Document.getElementsByClassName "game-log" document >>=
+            HTMLCollection.toArray)
 
 onLogContainerElement :: Document -> (Element -> Effect Unit) -> Effect Unit
 onLogContainerElement document callback = do
@@ -32,7 +33,10 @@ onLogContainerElement document callback = do
                       MutationObserver.disconnect observer
                       callback elem
                     Nothing -> pure unit)
-  MutationObserver.observe (Document.toNode document) { childList: true, subtree: true } observer
+  MutationObserver.observe
+    (Document.toNode document)
+    { childList: true, subtree: true }
+    observer
 
 getLogContainerFromRecord :: MutationRecord -> Effect (Maybe Element)
 getLogContainerFromRecord record = do
@@ -50,7 +54,7 @@ getLogContainerFromRecord record = do
 elementIsLogContainer :: Element -> Effect Boolean
 elementIsLogContainer element = do
   classes <- Element.classList element
-  contains classes "game-log"
+  DOMTokenList.contains classes "game-log"
 
 handleLogUpdates :: (String -> Effect Unit) -> Node -> Effect Unit
 handleLogUpdates callback logContainerNode = do

@@ -6,8 +6,11 @@ You can edit this file as you like.
 , dependencies =
   [ "assert"
   , "console"
+  , "debug"
   , "effect"
+  , "parsing"
   , "psci-support"
+  , "spec"
   , "transformers"
   , "web-dom"
   , "web-html"

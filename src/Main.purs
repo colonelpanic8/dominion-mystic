@@ -4,17 +4,24 @@ import Prelude
 
 import Data.Maybe as Maybe
 import Dominion.Log.DOM as DOM
+import Dominion.Log.Parse as Parse
 import Effect (Effect)
-import Effect.Console (log)
-import Web.HTML (window)
+import Effect.Console as Console
 import Web.DOM.Element as Element
-import Web.HTML.HTMLDocument (toDocument)
-import Web.HTML.Window (document)
+import Web.HTML as HTML
+import Web.HTML.HTMLDocument as HTMLDocument
+import Web.HTML.Window as Window
+import Debug.Trace as Trace
 
 main :: Effect Unit
 main = do
-  document <- toDocument <$> (document =<< window)
-  DOM.onLogContainerElement document ((DOM.handleLogUpdates log) <<< Element.toNode)
+  Console.log "Logging output of empty parseLine"
+  document <- HTMLDocument.toDocument <$> (Window.document =<< HTML.window)
+  DOM.onLogContainerElement document ((DOM.handleLogUpdates Console.log) <<< Element.toNode)
   elem <- DOM.getLogContainerElement document
-  log $ show $ Maybe.isJust elem
-  Maybe.maybe (pure unit) (DOM.handleLogUpdates log) (Element.toNode <$> elem)
+  Maybe.maybe (pure unit)
+    (DOM.handleLogUpdates $ \line ->
+      do
+        Console.log line
+        Trace.traceM $ Parse.parseLine line)
+    (Element.toNode <$> elem)
