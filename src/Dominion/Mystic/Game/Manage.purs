@@ -101,10 +101,15 @@ updateGameState state ( Data.DeckUpdate
     (Data.CardListUpdate { type: t, cards: cards })
 ) =
   ( case t of
-      Data.Gains -> gainToDiscard
-      Data.Trashes -> overState $ removeCardsFrom Data._hand cards
+      Data.Discards -> mv Data._hand Data._discard
       Data.Draws -> mv Data._deck Data._hand
       Data.Exiles -> mv Data._hand Data._exile
+      Data.Gains -> gainToDiscard
+      Data.Plays -> mv Data._hand Data._play
+      Data.PutsIntoHand -> mv Data._deck Data._hand
+      Data.Returns -> removeFromHand
+      Data.Topdecks -> mv Data._hand Data._deck
+      Data.Trashes -> removeFromHand
       _ -> state
   )
   where
@@ -134,3 +139,5 @@ updateGameState state ( Data.DeckUpdate
   gainToDiscard = gainTo Data._discard
 
   gainToHand = gainTo Data._hand
+
+  removeFromHand = overState $ removeCardsFrom Data._hand cards
