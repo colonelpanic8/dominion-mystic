@@ -7,6 +7,7 @@ import Data.Lens as Lens
 import Data.Lens.At (at)
 import Data.Lens.Iso as Iso
 import Data.Lens.Record as Record
+import Data.List as List
 import Data.Map as Map
 import Data.Maybe as Maybe
 import Data.String as String
@@ -107,7 +108,9 @@ instance showDeckUpdate :: Show DeckUpdate where
   show x = genericShow x
 
 mkCardListUpdate :: CardListUpdateType -> Player -> CardList -> DeckUpdate
-mkCardListUpdate t player cards = DeckUpdate player $ CardListUpdate { type: t, cards: cards }
+mkCardListUpdate t player cards =
+  DeckUpdate player
+    $ CardListUpdate { type: t, cards: cards }
 
 shufflesUpdate :: Player -> DeckUpdate
 shufflesUpdate player = DeckUpdate player Shuffles
@@ -211,11 +214,19 @@ type PlayerState
 
 type GameState'
   = { stateByPlayer :: Map.Map Player PlayerState
+    , history :: List.List (Tuple String DeckUpdate)
     , hasCurrentTurn :: Player
     }
 
 data GameState
   = GameState GameState'
+
+derive instance genericGameState :: Generic GameState _
+
+derive instance eqGameState :: Eq GameState
+
+instance showGameState :: Show GameState where
+  show x = genericShow x
 
 unpackGameState :: Lens.Lens' GameState GameState'
 unpackGameState = Lens.lens' unpack
@@ -225,12 +236,16 @@ unpackGameState = Lens.lens' unpack
 _stateByPlayer :: forall a r. Lens.Lens' { stateByPlayer :: a | r } a
 _stateByPlayer = Record.prop (SProxy :: SProxy "stateByPlayer")
 
-derive instance genericGameState :: Generic GameState _
+_history :: forall a r. Lens.Lens' { history :: a | r } a
+_history = Record.prop (SProxy :: SProxy "history")
 
-derive instance eqGameState :: Eq GameState
-
-instance showGameState :: Show GameState where
-  show x = genericShow x
+emptyGameState :: GameState
+emptyGameState =
+  GameState
+    { stateByPlayer: Map.empty
+    , history: List.Nil
+    , hasCurrentTurn: Player ""
+    }
 
 playerDeck :: Player -> Lens.Lens' GameState Deck'
 playerDeck player =

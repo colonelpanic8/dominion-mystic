@@ -1,14 +1,15 @@
 module Dominion.Mystic.Game.Manage where
 
-import Prelude
 import Data.Foldable (foldr, class Foldable)
 import Data.Lens as Lens
 import Data.Lens.At (at)
 import Data.Lens.Iso as Iso
+import Data.List as List
 import Data.Map as Map
 import Data.Profunctor.Strong (class Strong)
 import Data.Tuple (Tuple(..))
 import Dominion.Mystic.Data as Data
+import Prelude
 
 incrementCard ::
   Data.CardQuantity ->
@@ -84,8 +85,15 @@ transferCards fromSection toSection cards deck =
   removeCardsFrom fromSection cards
     $ Lens.over toSection (incrementCards cards) deck
 
-updateGameState :: Data.GameState -> Data.DeckUpdate -> Data.GameState
-updateGameState state (Data.DeckUpdate player Data.Shuffles) =
+updateGameStateAndHistory :: String -> Data.DeckUpdate -> Data.GameState -> Data.GameState
+updateGameStateAndHistory line update state =
+  Lens.over (Data.unpackGameState <<< Data._history) (List.Cons $ Tuple line update)
+    $ updateGameState
+        update
+        state
+
+updateGameState :: Data.DeckUpdate -> Data.GameState -> Data.GameState
+updateGameState (Data.DeckUpdate player Data.Shuffles) state =
   let
     discard :: Data.CardList
     discard =
@@ -96,10 +104,10 @@ updateGameState state (Data.DeckUpdate player Data.Shuffles) =
   in
     setDeckSection player Data._discard Map.empty shuffled
 
-updateGameState state ( Data.DeckUpdate
+updateGameState ( Data.DeckUpdate
     player
     (Data.CardListUpdate { type: t, cards: cards })
-) =
+) state =
   ( case t of
       Data.Discards -> mv Data._hand Data._discard
       Data.Draws -> mv Data._deck Data._hand

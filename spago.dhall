@@ -12,6 +12,7 @@ You can edit this file as you like.
   , "parsing"
   , "profunctor-lenses"
   , "psci-support"
+  , "refs"
   , "spec"
   , "strings"
   , "stringutils"
