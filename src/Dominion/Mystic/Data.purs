@@ -65,19 +65,39 @@ type CardQuantity
 type CardList
   = Array CardQuantity
 
+data CardListUpdateType
+  = Discards
+  | Draws
+  | Exiles
+  | Gains
+  | LooksAt
+  | Plays
+  | PutsIntoHand
+  | Returns
+  | Reveals
+  | Topdecks
+  | Trashes
+
+derive instance genericCardListUpdateType :: Generic CardListUpdateType _
+
+derive instance eqCardListUpdateType :: Eq CardListUpdateType
+
+instance showCardListUpdateType :: Show CardListUpdateType where
+  show x = genericShow x
+
+data UpdateInfo
+  = Shuffles
+  | CardListUpdate { type :: CardListUpdateType, cards :: CardList }
+
+derive instance genericUpdateInfo :: Generic UpdateInfo _
+
+derive instance eqUpdateInfo :: Eq UpdateInfo
+
+instance showUpdateInfo :: Show UpdateInfo where
+  show x = genericShow x
+
 data DeckUpdate
-  = Shuffles Player
-  | Discards Player CardList
-  | Draws Player CardList
-  | Exiles Player CardList
-  | Gains Player CardList
-  | LooksAt Player CardList
-  | Plays Player CardList
-  | PutsIntoHand Player CardList
-  | Returns Player CardList
-  | Reveals Player CardList
-  | Topdecks Player CardList
-  | Trashes Player CardList
+  = DeckUpdate Player UpdateInfo
 
 derive instance genericDeckUpdate :: Generic DeckUpdate _
 
@@ -85,6 +105,45 @@ derive instance eqDeckUpdate :: Eq DeckUpdate
 
 instance showDeckUpdate :: Show DeckUpdate where
   show x = genericShow x
+
+mkCardListUpdate :: CardListUpdateType -> Player -> CardList -> DeckUpdate
+mkCardListUpdate t player cards = DeckUpdate player $ CardListUpdate { type: t, cards: cards }
+
+shufflesUpdate :: Player -> DeckUpdate
+shufflesUpdate player = DeckUpdate player Shuffles
+
+discardsUpdate :: Player -> CardList -> DeckUpdate
+discardsUpdate = mkCardListUpdate Discards
+
+drawsUpdate :: Player -> CardList -> DeckUpdate
+drawsUpdate = mkCardListUpdate Draws
+
+exilesUpdate :: Player -> CardList -> DeckUpdate
+exilesUpdate = mkCardListUpdate Exiles
+
+gainsUpdate :: Player -> CardList -> DeckUpdate
+gainsUpdate = mkCardListUpdate Gains
+
+looksAtUpdate :: Player -> CardList -> DeckUpdate
+looksAtUpdate = mkCardListUpdate LooksAt
+
+playsUpdate :: Player -> CardList -> DeckUpdate
+playsUpdate = mkCardListUpdate Plays
+
+putsIntoHandUpdate :: Player -> CardList -> DeckUpdate
+putsIntoHandUpdate = mkCardListUpdate PutsIntoHand
+
+returnsUpdate :: Player -> CardList -> DeckUpdate
+returnsUpdate = mkCardListUpdate Returns
+
+revealsUpdate :: Player -> CardList -> DeckUpdate
+revealsUpdate = mkCardListUpdate Reveals
+
+topdecksUpdate :: Player -> CardList -> DeckUpdate
+topdecksUpdate = mkCardListUpdate Topdecks
+
+trashesUpdate :: Player -> CardList -> DeckUpdate
+trashesUpdate = mkCardListUpdate Trashes
 
 type CountsByCardType
   = Map.Map Card Int

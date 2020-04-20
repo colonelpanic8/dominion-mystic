@@ -79,8 +79,8 @@ transferCards fromSection toSection cards deck =
   newPlaces = Lens.over toSection (incrementCards cards) deck
 
 updateGameState :: Data.GameState -> Data.DeckUpdate -> Data.GameState
-updateGameState state update = case update of
-  (Data.Shuffles player) ->
+updateGameState state (Data.DeckUpdate player info) = case info of
+  Data.Shuffles ->
     let
       discard :: Data.CardList
       discard =
@@ -90,7 +90,7 @@ updateGameState state update = case update of
       shuffled = incrementCardsTo player Data._deck discard state
     in
       setDeckSection player Data._discard Map.empty shuffled
-  (Data.Gains player cards) -> gainToDiscard player cards state
+  Data.CardListUpdate { type: Data.Gains, cards: cards } -> gainToDiscard player cards state
   -- (Data.Draws player cards) -> move player cards Data._deck Data._hand
   -- (Data.Exiles player cards) -> move player cards Data._hand Data._exile
   _ -> state

@@ -20,6 +20,9 @@ expectParseLine input expected = expectSuccessfulParsing Parse.parseLine input [
 c :: Int -> String -> Data.CardQuantity
 c quantity name = Tuple (Data.Card name) quantity
 
+u :: Data.CardListUpdateType -> String -> Data.CardList -> Data.DeckUpdate
+u t name cards = Data.mkCardListUpdate t (Data.Player name) cards
+
 parseSpec :: Spec Unit
 parseSpec =
   describe "Parsing" do
@@ -33,43 +36,43 @@ parseSpec =
       it "handles gains" do
         expectParseLine
           "E starts with a Hovel, a Necropolis and an Overgrown Estate."
-          $ Data.Gains (Data.Player "E") shelters
+          $ u Data.Gains "E" shelters
       it "handles trashing" do
         expectParseLine
           "E trashes a Hovel, a Necropolis and an Overgrown Estate."
-          $ Data.Trashes (Data.Player "E") shelters
+          $ u Data.Trashes "E" shelters
       it "handles exiles" do
         expectParseLine
           "Edi exiles a Horse"
-          $ Data.Exiles (Data.Player "Edi") [ c 1 "Horse" ]
+          $ u Data.Exiles "Edi" [ c 1 "Horse" ]
       it "handles shuffle" do
         expectParseLine
           "K shuffles their deck."
-          $ Data.Shuffles
+          $ Data.shufflesUpdate
           $ Data.Player "K"
       it "handles topdecks" do
         expectParseLine
           "L topdecks 2 Coppers and a Silver."
-          $ Data.Topdecks (Data.Player "L")
+          $ u Data.Topdecks "L"
               [ c 2 "Copper"
               , c 1 "Silver"
               ]
       it "handles wishing" do
         expectParseLine
           "E wishes for Ironmonger and finds it."
-          $ Data.Draws (Data.Player "E") [ c 1 "Ironmonger" ]
+          $ u Data.Draws "E" [ c 1 "Ironmonger" ]
       it "handles returns" do
         expectParseLine
           "E returns an Estate to the Estate pile."
-          $ Data.Returns (Data.Player "E") [ c 1 "Estate" ]
+          $ u Data.Returns "E" [ c 1 "Estate" ]
       it "handles returns with no pile mention" do
         expectParseLine
           "E returns a Horse."
-          $ Data.Returns (Data.Player "E") [ c 1 "Horse" ]
+          $ u Data.Returns "E" [ c 1 "Horse" ]
       it "handles looks at" do
         expectParseLine
           "E looks at 3 Estates, 3 Horses, an Ambassador, a Changeling, 5 Coppers and 4 Sleighs."
-          $ Data.LooksAt (Data.Player "E")
+          $ u Data.LooksAt "E"
               [ c 3 "Estate"
               , c 3 "Horse"
               , c 1 "Ambassador"
@@ -80,21 +83,21 @@ parseSpec =
       it "handles plays" do
         expectParseLine
           "L plays a Gold and 3 Coppers."
-          $ Data.Plays (Data.Player "L")
+          $ u Data.Plays "L"
               [ c 1 "Gold"
               , c 3 "Copper"
               ]
       it "handles leading whitespace" do
         expectParseLine
           "   E reveals a Mystic and 2 Provinces."
-          $ Data.Reveals (Data.Player "E")
+          $ u Data.Reveals "E"
               [ c 1 "Mystic"
               , c 2 "Province"
               ]
       it "handles reveals" do
         expectParseLine
           "E reveals a Mystic and 2 Provinces."
-          $ Data.Reveals (Data.Player "E")
+          $ u Data.Reveals "E"
               [ c 1 "Mystic"
               , c 2 "Province"
               ]

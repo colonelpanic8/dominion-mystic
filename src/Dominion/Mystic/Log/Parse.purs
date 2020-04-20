@@ -23,17 +23,17 @@ parseLine = do
   Combinators.choice
     [ Combinators.try parseShuffle
     , Combinators.try parseWish
-    , parseCardListAction Data.Discards "discards"
-    , parseCardListAction Data.Draws "draws"
-    , parseCardListAction Data.Exiles "exiles"
-    , parseCardListAction Data.Gains "gains"
-    , parseCardListAction Data.Gains "starts with"
-    , parseCardListAction Data.LooksAt "looks at"
-    , parseCardListAction Data.Plays "plays"
-    , parseCardListAction Data.Returns "returns"
-    , parseCardListAction Data.Reveals "reveals"
-    , parseCardListAction Data.Topdecks "topdecks"
-    , parseCardListAction Data.Trashes "trashes"
+    , parseCardListAction Data.discardsUpdate "discards"
+    , parseCardListAction Data.drawsUpdate "draws"
+    , parseCardListAction Data.exilesUpdate "exiles"
+    , parseCardListAction Data.gainsUpdate "gains"
+    , parseCardListAction Data.gainsUpdate "starts with"
+    , parseCardListAction Data.looksAtUpdate "looks at"
+    , parseCardListAction Data.playsUpdate "plays"
+    , parseCardListAction Data.returnsUpdate "returns"
+    , parseCardListAction Data.revealsUpdate "reveals"
+    , parseCardListAction Data.topdecksUpdate "topdecks"
+    , parseCardListAction Data.trashesUpdate "trashes"
     ]
 
 parsePlayer :: Parser String Data.Player
@@ -46,14 +46,14 @@ parseWish = do
   _ <- String.string "wishes for"
   String.skipSpaces
   cardName <- parseStringTill $ String.string " and finds it."
-  pure $ pure $ Data.Draws player [ Tuple.Tuple (Data.Card cardName) 1 ]
+  pure $ pure $ Data.drawsUpdate player [ Tuple.Tuple (Data.Card cardName) 1 ]
 
 parseShuffle :: Parser String (Array Data.DeckUpdate)
 parseShuffle = do
   player <- parsePlayer
   String.skipSpaces
   _ <- String.string "shuffles their deck"
-  pure $ pure $ Data.Shuffles $ player
+  pure $ pure $ Data.shufflesUpdate player
 
 parseCardListAction ::
   (Data.Player -> Data.CardList -> Data.DeckUpdate) ->
