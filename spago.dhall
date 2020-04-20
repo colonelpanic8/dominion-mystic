@@ -10,6 +10,7 @@ You can edit this file as you like.
   , "effect"
   , "formatters"
   , "parsing"
+  , "profunctor-lenses"
   , "psci-support"
   , "spec"
   , "strings"
