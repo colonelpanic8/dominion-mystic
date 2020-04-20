@@ -28,6 +28,7 @@ parseLine = do
     , parseCardListAction Data.exilesUpdate "exiles"
     , parseCardListAction Data.gainsUpdate "gains"
     , parseCardListAction Data.gainsUpdate "starts with"
+    , parseCardListAction Data.gainsUpdate "buys and gains"
     , parseCardListAction Data.looksAtUpdate "looks at"
     , parseCardListAction Data.playsUpdate "plays"
     , parseCardListAction Data.returnsUpdate "returns"

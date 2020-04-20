@@ -28,6 +28,6 @@ main = do
 
               doUpdate update = Ref.modify_ (\state -> updateGameStateAndHistory line update state) gameState
             traverse_ doUpdate updates
-            state <- Ref.read gameState
-            Console.logShow state
+            Data.GameState state <- Ref.read gameState
+            Console.logShow $ state2.stateByPlayer
   DOM.onLogContainerElement document (handleNodeElements <<< Element.toNode)

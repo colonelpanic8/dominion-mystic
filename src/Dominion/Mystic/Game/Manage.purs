@@ -112,7 +112,7 @@ updateGameState ( Data.DeckUpdate
       Data.Discards -> mv Data._hand Data._discard
       Data.Draws -> mv Data._deck Data._hand
       Data.Exiles -> mv Data._hand Data._exile
-      Data.Gains -> gainToDiscard
+      Data.Gains -> gainTo Data._discard
       Data.Plays -> mv Data._hand Data._play
       Data.PutsIntoHand -> mv Data._deck Data._hand
       Data.Returns -> removeFromHand
@@ -133,18 +133,13 @@ updateGameState ( Data.DeckUpdate
     Data.DeckSectionLens ->
     Data.DeckSectionLens ->
     Data.GameState
-  move c source dest =
-    Lens.over (Data.playerDeck player)
-      (transferCards source dest c)
-      state
+  move c source dest = overState $ transferCards source dest c
 
   mv :: Data.DeckSectionLens -> Data.DeckSectionLens -> Data.GameState
   mv = move cards
 
   gainTo :: Data.DeckSectionLens -> Data.GameState
   gainTo lens = incrementCardsTo player lens cards state
-
-  gainToDiscard = gainTo Data._discard
 
   gainToHand = gainTo Data._hand
 

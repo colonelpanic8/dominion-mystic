@@ -101,6 +101,11 @@ parseSpec =
               [ c 1 "Mystic"
               , c 2 "Province"
               ]
+      it "handles buys and gains" do
+        expectParseLine
+          "L buys and gains a Silver."
+          $ u Data.Gains "L"
+          $ [ c 1 "Silver" ]
     describe "parseCardsList" do
       it "handles a list of cards separated by commas and an \"and\"" do
         expectSuccessfulParsing Parse.parseCardList
