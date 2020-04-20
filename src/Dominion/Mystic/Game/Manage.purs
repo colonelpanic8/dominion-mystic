@@ -10,8 +10,13 @@ import Data.Profunctor.Strong (class Strong)
 import Data.Tuple (Tuple(..))
 import Dominion.Mystic.Data as Data
 
-incrementCard :: Data.CardQuantity -> Data.CountsByCardType -> Data.CountsByCardType
-incrementCard (Tuple card quantity) counts = Lens.over (at card <<< Iso.non 0) (add quantity) counts
+incrementCard ::
+  Data.CardQuantity ->
+  Data.CountsByCardType ->
+  Data.CountsByCardType
+incrementCard (Tuple card quantity) counts =
+  Lens.over (at card <<< Iso.non 0) (add quantity)
+    counts
 
 incrementCards ::
   forall f.
@@ -41,6 +46,19 @@ setDeckSection ::
   Data.GameState
 setDeckSection player = Lens.set <<< playerDeckSection player
 
+removeCardsFrom ::
+  forall f.
+  Foldable f =>
+  Functor f =>
+  Data.DeckSectionLens ->
+  f Data.CardQuantity ->
+  Data.Deck' ->
+  Data.Deck'
+removeCardsFrom section cards deck =
+  Lens.over section
+    (incrementCards $ map (Lens.over Lens._2 negate) cards)
+    deck
+
 incrementCardsTo ::
   forall f.
   Foldable f =>
@@ -53,15 +71,6 @@ incrementCardsTo player deckSection cardQuantities =
   Lens.over (playerDeckSection player deckSection)
     (incrementCards cardQuantities)
 
-gainToDiscard ::
-  forall f.
-  Foldable f =>
-  Data.Player ->
-  f Data.CardQuantity ->
-  Data.GameState ->
-  Data.GameState
-gainToDiscard player = incrementCardsTo player Data._discard
-
 transferCards ::
   forall f.
   Foldable f =>
@@ -72,25 +81,56 @@ transferCards ::
   Data.Deck' ->
   Data.Deck'
 transferCards fromSection toSection cards deck =
-  Lens.over fromSection
-    (incrementCards $ map (Lens.over Lens._2 negate) cards)
-    newPlaces
-  where
-  newPlaces = Lens.over toSection (incrementCards cards) deck
+  removeCardsFrom fromSection cards
+    $ Lens.over toSection (incrementCards cards) deck
 
 updateGameState :: Data.GameState -> Data.DeckUpdate -> Data.GameState
-updateGameState state (Data.DeckUpdate player info) = case info of
-  Data.Shuffles ->
-    let
-      discard :: Data.CardList
-      discard =
-        Map.toUnfoldable
-          $ Lens.view (playerDeckSection player Data._discard) state
+updateGameState state (Data.DeckUpdate player Data.Shuffles) =
+  let
+    discard :: Data.CardList
+    discard =
+      Map.toUnfoldable
+        $ Lens.view (playerDeckSection player Data._discard) state
 
-      shuffled = incrementCardsTo player Data._deck discard state
-    in
-      setDeckSection player Data._discard Map.empty shuffled
-  Data.CardListUpdate { type: Data.Gains, cards: cards } -> gainToDiscard player cards state
-  -- (Data.Draws player cards) -> move player cards Data._deck Data._hand
-  -- (Data.Exiles player cards) -> move player cards Data._hand Data._exile
-  _ -> state
+    shuffled = incrementCardsTo player Data._deck discard state
+  in
+    setDeckSection player Data._discard Map.empty shuffled
+
+updateGameState state ( Data.DeckUpdate
+    player
+    (Data.CardListUpdate { type: t, cards: cards })
+) =
+  ( case t of
+      Data.Gains -> gainToDiscard
+      Data.Trashes -> overState $ removeCardsFrom Data._hand cards
+      Data.Draws -> mv Data._deck Data._hand
+      Data.Exiles -> mv Data._hand Data._exile
+      _ -> state
+  )
+  where
+  overPlayerDeck = Lens.over $ Data.playerDeck player
+
+  overState action = overPlayerDeck action state
+
+  move ::
+    forall f.
+    Foldable f =>
+    Functor f =>
+    f Data.CardQuantity ->
+    Data.DeckSectionLens ->
+    Data.DeckSectionLens ->
+    Data.GameState
+  move c source dest =
+    Lens.over (Data.playerDeck player)
+      (transferCards source dest c)
+      state
+
+  mv :: Data.DeckSectionLens -> Data.DeckSectionLens -> Data.GameState
+  mv = move cards
+
+  gainTo :: Data.DeckSectionLens -> Data.GameState
+  gainTo lens = incrementCardsTo player lens cards state
+
+  gainToDiscard = gainTo Data._discard
+
+  gainToHand = gainTo Data._hand
