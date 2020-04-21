@@ -9,14 +9,25 @@ import Data.Map as Map
 import Data.Profunctor.Strong (class Strong)
 import Data.Tuple (Tuple(..))
 import Dominion.Mystic.Data as Data
+import Effect.Exception.Unsafe as Unsafe
 import Prelude
+
+-- XXX Remove this once things actually work
+throwAdd :: Int -> Int -> Int
+throwAdd a b =
+  if sum < 0 then
+    Unsafe.unsafeThrow "Got a negative"
+  else
+    sum
+  where
+  sum = a + b
 
 incrementCard ::
   Data.CardQuantity ->
   Data.CountsByCardType ->
   Data.CountsByCardType
 incrementCard (Tuple card quantity) counts =
-  Lens.over (at card <<< Iso.non 0) (add quantity)
+  Lens.over (at card <<< Iso.non 0) (throwAdd quantity)
     counts
 
 incrementCards ::
