@@ -22,6 +22,7 @@ parseLine = do
   String.skipSpaces
   Combinators.choice
     [ Combinators.try parseShuffle
+    , Combinators.try parseTurn
     , Combinators.try parseWish
     , parseCardListAction Data.discardsUpdate "discards"
     , parseCardListAction Data.drawsUpdate "draws"
@@ -40,20 +41,22 @@ parseLine = do
 parsePlayer :: Parser String Data.Player
 parsePlayer = Data.Player <$> SCU.fromCharArray <$> Array.many alphaNum
 
-parseWish :: Parser String (Array Data.DeckUpdate)
-parseWish = do
+parseTurn :: Parser String (Array Data.DeckUpdate)
+parseTurn = do
+  skipString "Turn"
+  String.skipSpaces
+  _ <- parseInteger
+  String.skipSpaces
+  skipString "-"
+  String.skipSpaces
   player <- parsePlayer
-  String.skipSpaces
-  _ <- String.string "wishes for"
-  String.skipSpaces
-  cardName <- parseStringTill $ String.string " and finds it."
-  pure $ pure $ Data.drawsUpdate player [ Tuple.Tuple (Data.Card cardName) 1 ]
+  pure $ pure $ Data.turnUpdate player
 
 parseShuffle :: Parser String (Array Data.DeckUpdate)
 parseShuffle = do
   player <- parsePlayer
   String.skipSpaces
-  _ <- String.string "shuffles their deck"
+  skipString "shuffles their deck"
   pure $ pure $ Data.shufflesUpdate player
 
 parseCardListAction ::
@@ -72,10 +75,10 @@ parseCardListActionWithSuffix constructor actionString suffixString =
     <$> Combinators.try do
         player <- parsePlayer
         String.skipSpaces
-        _ <- String.string actionString
+        skipString actionString
         String.skipSpaces
         cardList <- parseCardList
-        _ <- String.string suffixString
+        skipString suffixString
         pure $ constructor player cardList
 
 cardSplitMatcher :: Parser String String
@@ -118,3 +121,15 @@ parseStringTill :: Parser String String -> Parser String String
 parseStringTill stop =
   SCU.fromCharArray <<< List.toUnfoldable
     <$> Combinators.manyTill String.anyChar stop
+
+parseWish :: Parser String (Array Data.DeckUpdate)
+parseWish = do
+  player <- parsePlayer
+  String.skipSpaces
+  skipString "wishes for"
+  String.skipSpaces
+  cardName <- parseStringTill $ String.string " and finds it."
+  pure $ pure $ Data.drawsUpdate player [ Tuple.Tuple (Data.Card cardName) 1 ]
+
+skipString :: String -> Parser String Unit
+skipString = void <<< String.string

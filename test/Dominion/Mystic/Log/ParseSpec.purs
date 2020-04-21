@@ -106,6 +106,11 @@ parseSpec =
           "L buys and gains a Silver."
           $ u Data.Gains "L"
           $ [ c 1 "Silver" ]
+      it "handles turns" do
+        expectParseLine
+          "Turn 1 - EyeVanMaliceSon"
+          $ Data.turnUpdate
+          $ Data.Player "EyeVanMaliceSon"
     describe "parseCardsList" do
       it "handles a list of cards separated by commas and an \"and\"" do
         expectSuccessfulParsing Parse.parseCardList

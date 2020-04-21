@@ -93,6 +93,8 @@ updateGameStateAndHistory line update state =
         state
 
 updateGameState :: Data.DeckUpdate -> Data.GameState -> Data.GameState
+updateGameState (Data.DeckUpdate player Data.Turn) state = state
+
 updateGameState (Data.DeckUpdate player Data.Shuffles) state =
   let
     discard :: Data.CardList

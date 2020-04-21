@@ -88,6 +88,7 @@ instance showCardListUpdateType :: Show CardListUpdateType where
 
 data UpdateInfo
   = Shuffles
+  | Turn
   | CardListUpdate { type :: CardListUpdateType, cards :: CardList }
 
 derive instance genericUpdateInfo :: Generic UpdateInfo _
@@ -111,6 +112,9 @@ mkCardListUpdate :: CardListUpdateType -> Player -> CardList -> DeckUpdate
 mkCardListUpdate t player cards =
   DeckUpdate player
     $ CardListUpdate { type: t, cards: cards }
+
+turnUpdate :: Player -> DeckUpdate
+turnUpdate player = DeckUpdate player Turn
 
 shufflesUpdate :: Player -> DeckUpdate
 shufflesUpdate player = DeckUpdate player Shuffles
@@ -151,14 +155,17 @@ trashesUpdate = mkCardListUpdate Trashes
 type CountsByCardType
   = Map.Map Card Int
 
+type DeckSection
+  = CountsByCardType
+
 type Deck'
-  = { discard :: CountsByCardType
-    , deck :: CountsByCardType
-    , hand :: CountsByCardType
-    , play :: CountsByCardType
-    , exile :: CountsByCardType
-    , tavern :: CountsByCardType
-    , island :: CountsByCardType
+  = { discard :: DeckSection
+    , deck :: DeckSection
+    , hand :: DeckSection
+    , play :: DeckSection
+    , exile :: DeckSection
+    , tavern :: DeckSection
+    , island :: DeckSection
     }
 
 data Deck
@@ -256,4 +263,4 @@ playerDeck player =
     <<< unpackDeck
 
 type DeckSectionLens
-  = Lens.Lens' Deck' CountsByCardType
+  = Lens.Lens' Deck' DeckSection
