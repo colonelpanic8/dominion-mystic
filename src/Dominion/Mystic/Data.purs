@@ -14,6 +14,7 @@ import Data.String as String
 import Data.String.Pattern (Pattern(..))
 import Data.Symbol (SProxy(..))
 import Data.Tuple (Tuple(..))
+import Data.Profunctor.Strong (class Strong)
 
 newtype Card
   = Card String
@@ -261,6 +262,14 @@ playerDeck player =
     <<< at player
     <<< (Iso.non emptyDeck)
     <<< unpackDeck
+
+playerDeckSection ::
+  forall t a.
+  Strong t =>
+  Player ->
+  (a -> t Deck' Deck') ->
+  a -> t GameState GameState
+playerDeckSection player section = playerDeck player <<< section
 
 type DeckSectionLens
   = Lens.Lens' Deck' DeckSection

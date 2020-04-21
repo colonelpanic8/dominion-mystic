@@ -1,22 +1,23 @@
 module Dominion.Mystic.Track.Game where
 
+import Data.Array as Array
 import Data.Foldable (foldr, class Foldable)
 import Data.Lens as Lens
 import Data.Lens.At (at)
 import Data.Lens.Iso as Iso
 import Data.List as List
 import Data.Map as Map
-import Data.Profunctor.Strong (class Strong)
 import Data.Tuple (Tuple(..))
+import Data.Tuple as Tuple
 import Dominion.Mystic.Data as Data
 import Effect.Exception.Unsafe as Unsafe
 import Prelude
 
 -- XXX Remove this once things actually work
-throwAdd :: Int -> Int -> Int
-throwAdd a b =
+throwAdd :: Data.Card -> Int -> Int -> Int
+throwAdd (Data.Card card) a b =
   if sum < 0 then
-    Unsafe.unsafeThrow "Got a negative"
+    Unsafe.unsafeThrow $ "Got a negative with " <> card <> " left: " <> show a <> " right: " <> show b
   else
     sum
   where
@@ -27,7 +28,7 @@ incrementCard ::
   Data.CountsByCardType ->
   Data.CountsByCardType
 incrementCard (Tuple card quantity) counts =
-  Lens.over (at card <<< Iso.non 0) (throwAdd quantity)
+  Lens.over (at card <<< Iso.non 0) (throwAdd card quantity)
     counts
 
 incrementCards ::
@@ -37,14 +38,6 @@ incrementCards ::
   Data.CountsByCardType ->
   Data.CountsByCardType
 incrementCards = flip $ foldr incrementCard
-
-playerDeckSection ::
-  forall t a.
-  Strong t =>
-  Data.Player ->
-  (a -> t Data.Deck' Data.Deck') ->
-  a -> t Data.GameState Data.GameState
-playerDeckSection player section = Data.playerDeck player <<< section
 
 setDeckSection ::
   forall a b.
@@ -56,7 +49,7 @@ setDeckSection ::
   a ->
   Data.GameState ->
   Data.GameState
-setDeckSection player = Lens.set <<< playerDeckSection player
+setDeckSection player = Lens.set <<< Data.playerDeckSection player
 
 removeCardsFrom ::
   forall f.
@@ -80,7 +73,7 @@ incrementCardsTo ::
   Data.GameState ->
   Data.GameState
 incrementCardsTo player deckSection cardQuantities =
-  Lens.over (playerDeckSection player deckSection)
+  Lens.over (Data.playerDeckSection player deckSection)
     (incrementCards cardQuantities)
 
 transferCards ::
@@ -98,7 +91,8 @@ transferCards fromSection toSection cards deck =
 
 updateGameStateAndHistory :: String -> Data.DeckUpdate -> Data.GameState -> Data.GameState
 updateGameStateAndHistory line update state =
-  Lens.over (Data.unpackGameState <<< Data._history) (List.Cons $ Tuple line update)
+  Lens.over (Data.unpackGameState <<< Data._history)
+    (List.Cons $ Tuple line update)
     $ updateGameState
         update
         state
@@ -111,7 +105,7 @@ updateGameState (Data.DeckUpdate player Data.Shuffles) state =
     discard :: Data.CardList
     discard =
       Map.toUnfoldable
-        $ Lens.view (playerDeckSection player Data._discard) state
+        $ Lens.view (Data.playerDeckSection player Data._discard) state
 
     shuffled = incrementCardsTo player Data._deck discard state
   in
@@ -119,7 +113,7 @@ updateGameState (Data.DeckUpdate player Data.Shuffles) state =
 
 updateGameState ( Data.DeckUpdate
     player
-    (Data.CardListUpdate { type: t, cards: cards })
+    (Data.CardListUpdate { type: t, cards: cards' })
 ) state =
   ( case t of
       Data.Discards -> mv Data._hand Data._discard
@@ -128,12 +122,14 @@ updateGameState ( Data.DeckUpdate
       Data.Gains -> gainTo Data._discard
       Data.Plays -> mv Data._hand Data._play
       Data.PutsIntoHand -> mv Data._deck Data._hand
-      Data.Returns -> removeFromHand
+      Data.Returns -> removeFromHand unit
       Data.Topdecks -> mv Data._hand Data._deck
-      Data.Trashes -> removeFromHand
+      Data.Trashes -> removeFromHand unit
       _ -> state
   )
   where
+  cards = Array.filter ((_ /= Data.Card "card") <<< Tuple.fst) cards'
+
   overPlayerDeck = Lens.over $ Data.playerDeck player
 
   overState action = overPlayerDeck action state
@@ -154,6 +150,5 @@ updateGameState ( Data.DeckUpdate
   gainTo :: Data.DeckSectionLens -> Data.GameState
   gainTo lens = incrementCardsTo player lens cards state
 
-  gainToHand = gainTo Data._hand
-
-  removeFromHand = overState $ removeCardsFrom Data._hand cards
+  removeFromHand :: Unit -> Data.GameState
+  removeFromHand _ = overState $ removeCardsFrom Data._hand cards

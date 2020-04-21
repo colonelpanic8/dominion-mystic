@@ -23,8 +23,8 @@ c quantity name = Tuple (Data.Card name) quantity
 u :: Data.CardListUpdateType -> String -> Data.CardList -> Data.DeckUpdate
 u t name cards = Data.mkCardListUpdate t (Data.Player name) cards
 
-parseSpec :: Spec Unit
-parseSpec =
+parseLogSpec :: Spec Unit
+parseLogSpec =
   describe "Parsing" do
     let
       shelters =
