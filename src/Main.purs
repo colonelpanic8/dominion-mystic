@@ -2,7 +2,7 @@ module Main where
 
 import Data.Traversable (traverse_)
 import Dominion.Mystic.Data as Data
-import Dominion.Mystic.Game.Manage (updateGameStateAndHistory)
+import Dominion.Mystic.Track.Game (updateGameStateAndHistory)
 import Dominion.Mystic.Log.DOM as DOM
 import Dominion.Mystic.Log.Parse as Parse
 import Effect (Effect)

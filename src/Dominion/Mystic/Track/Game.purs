@@ -1,4 +1,4 @@
-module Dominion.Mystic.Game.Manage where
+module Dominion.Mystic.Track.Game where
 
 import Data.Foldable (foldr, class Foldable)
 import Data.Lens as Lens
