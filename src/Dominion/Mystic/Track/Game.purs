@@ -1,17 +1,19 @@
 module Dominion.Mystic.Track.Game where
 
+import Prelude
 import Data.Array as Array
-import Data.Foldable (foldr, class Foldable)
+import Data.Foldable (foldr, class Foldable, find)
 import Data.Lens as Lens
 import Data.Lens.At (at)
 import Data.Lens.Iso as Iso
 import Data.List as List
 import Data.Map as Map
+import Data.Maybe as Maybe
+import Data.String as String
 import Data.Tuple (Tuple(..))
 import Data.Tuple as Tuple
 import Dominion.Mystic.Data as Data
 import Effect.Exception.Unsafe as Unsafe
-import Prelude
 
 -- XXX Remove this once things actually work
 throwAdd :: Data.Card -> Int -> Int -> Int
@@ -51,6 +53,16 @@ setDeckSection ::
   Data.GameState
 setDeckSection player = Lens.set <<< Data.playerDeckSection player
 
+addCardsTo ::
+  forall f.
+  Foldable f =>
+  Functor f =>
+  Data.DeckSectionLens ->
+  f Data.CardQuantity ->
+  Data.Deck' ->
+  Data.Deck'
+addCardsTo section cards = Lens.over section $ incrementCards cards
+
 removeCardsFrom ::
   forall f.
   Foldable f =>
@@ -59,10 +71,9 @@ removeCardsFrom ::
   f Data.CardQuantity ->
   Data.Deck' ->
   Data.Deck'
-removeCardsFrom section cards deck =
-  Lens.over section
-    (incrementCards $ map (Lens.over Lens._2 negate) cards)
-    deck
+removeCardsFrom section cards =
+  addCardsTo section
+    $ map (Lens.over Lens._2 negate) cards
 
 incrementCardsTo ::
   forall f.
@@ -89,6 +100,16 @@ transferCards fromSection toSection cards deck =
   removeCardsFrom fromSection cards
     $ Lens.over toSection (incrementCards cards) deck
 
+transferAllCards ::
+  Data.DeckSectionLens ->
+  Data.DeckSectionLens ->
+  Data.Deck' ->
+  Data.Deck'
+transferAllCards fromSection toSection deck = transferCards fromSection toSection cards deck
+  where
+  cards :: Array Data.CardQuantity
+  cards = Map.toUnfoldable $ Lens.view fromSection deck
+
 updateGameStateAndHistory :: String -> Data.DeckUpdate -> Data.GameState -> Data.GameState
 updateGameStateAndHistory line update state =
   Lens.over (Data.unpackGameState <<< Data._history)
@@ -97,8 +118,45 @@ updateGameStateAndHistory line update state =
         update
         state
 
+endTurn :: Data.Deck' -> Data.Deck'
+endTurn =
+  transferAllCards Data._play Data._discard
+    <<< transferAllCards Data._hand Data._discard
+
 updateGameState :: Data.DeckUpdate -> Data.GameState -> Data.GameState
-updateGameState (Data.DeckUpdate player Data.Turn) state = state
+updateGameState (Data.DeckUpdate (Data.Player turnPlayer) Data.Turn) state@(Data.GameState state') =
+  updateCurrentTurn
+    $ Maybe.fromMaybe state
+    $ cleanupState
+    <$> state'.hasCurrentTurn
+  where
+  newTurnPlayer =
+    Maybe.fromMaybe (Data.Player turnPlayer)
+      $ find (\(Data.Player p) -> String.take (String.length p) turnPlayer == p)
+      $ Map.keys state'.stateByPlayer
+
+  updateCurrentTurn =
+    Lens.set (Data.unpackGameState <<< Data._hasCurrentTurn)
+      (Maybe.Just newTurnPlayer)
+
+  cleanupState cleanupTurnPlayer =
+    let
+      isTurnDraw i = case i of
+        ( Tuple.Tuple
+            _
+            (Data.DeckUpdate dPlayer (Data.CardListUpdate { type: Data.Draws }))
+        ) -> dPlayer == cleanupTurnPlayer
+        _ -> false
+
+      lastCardsDrawn = case find isTurnDraw state'.history of
+        Maybe.Just (Tuple.Tuple _ (Data.DeckUpdate _ (Data.CardListUpdate { cards: cards }))) -> cards
+        _ -> []
+
+      cleanupTransformation =
+        addCardsTo Data._hand lastCardsDrawn <<< endTurn
+          <<< removeCardsFrom Data._hand lastCardsDrawn
+    in
+      Lens.over (Data.playerDeck cleanupTurnPlayer) cleanupTransformation state
 
 updateGameState (Data.DeckUpdate player Data.Shuffles) state =
   let

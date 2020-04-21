@@ -223,7 +223,7 @@ type PlayerState
 type GameState'
   = { stateByPlayer :: Map.Map Player PlayerState
     , history :: List.List (Tuple String DeckUpdate)
-    , hasCurrentTurn :: Player
+    , hasCurrentTurn :: Maybe.Maybe Player
     }
 
 data GameState
@@ -247,12 +247,15 @@ _stateByPlayer = Record.prop (SProxy :: SProxy "stateByPlayer")
 _history :: forall a r. Lens.Lens' { history :: a | r } a
 _history = Record.prop (SProxy :: SProxy "history")
 
+_hasCurrentTurn :: forall a r. Lens.Lens' { hasCurrentTurn :: a | r } a
+_hasCurrentTurn = Record.prop (SProxy :: SProxy "hasCurrentTurn")
+
 emptyGameState :: GameState
 emptyGameState =
   GameState
     { stateByPlayer: Map.empty
     , history: List.Nil
-    , hasCurrentTurn: Player ""
+    , hasCurrentTurn: Maybe.Nothing
     }
 
 playerDeck :: Player -> Lens.Lens' GameState Deck'
