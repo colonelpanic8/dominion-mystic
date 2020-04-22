@@ -280,3 +280,13 @@ playerDeckSection player section = playerDeck player <<< section
 
 type DeckSectionLens
   = Lens.Lens' Deck' DeckSection
+
+data GameUpdateError
+  = NegativeCardQuantity Card (Maybe.Maybe String)
+
+derive instance genericGameUpdateError :: Generic GameUpdateError _
+
+derive instance eqGameUpdateError :: Eq GameUpdateError
+
+instance showGameUpdateError :: Show GameUpdateError where
+  show x = genericShow x

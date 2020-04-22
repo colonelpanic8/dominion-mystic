@@ -2,6 +2,7 @@ module Dominion.Mystic.Track.Game where
 
 import Prelude
 import Data.Array as Array
+import Data.Either as Either
 import Data.Foldable (foldr, class Foldable, find)
 import Data.Lens as Lens
 import Data.Lens.At (at)
@@ -9,43 +10,63 @@ import Data.Lens.Iso as Iso
 import Data.List as List
 import Data.Map as Map
 import Data.Maybe as Maybe
+import Data.Profunctor.Choice (left)
 import Data.String as String
 import Data.Tuple (Tuple(..))
 import Data.Tuple as Tuple
 import Dominion.Mystic.Data as Data
-import Effect.Exception.Unsafe as Unsafe
 
--- XXX Remove this once things actually work
-throwAdd :: Data.Card -> Int -> Int -> Int
-throwAdd (Data.Card card) a b =
+type GameStateUpdate
+  = Either.Either Data.GameUpdateError Data.GameState
+
+type DeckUpdate
+  = Either.Either Data.GameUpdateError Data.Deck'
+
+overJust ::
+  forall a b f.
+  Functor f =>
+  Lens.Lens' a b ->
+  (b -> f b) ->
+  a ->
+  f a
+overJust lens fn v = flip (Lens.set lens) v <$> (fn $ Lens.view lens v)
+
+nonNegativeAdd :: Int -> Int -> Maybe.Maybe Int
+nonNegativeAdd a b =
   if sum < 0 then
-    Unsafe.unsafeThrow
-      $ "Got a negative with "
-      <> card
-      <> " left: "
-      <> show a
-      <> " right: "
-      <> show b
+    Maybe.Nothing
   else
-    sum
+    Maybe.Just sum
   where
   sum = a + b
+
+tryIncrementCard ::
+  Data.CardQuantity ->
+  Data.CountsByCardType ->
+  Data.CountsByCardType
+tryIncrementCard (Tuple card quantity) counts =
+  Lens.over
+    (at card <<< Iso.non 0)
+    (Maybe.fromMaybe <*> nonNegativeAdd quantity)
+    counts
 
 incrementCard ::
   Data.CardQuantity ->
   Data.CountsByCardType ->
-  Data.CountsByCardType
-incrementCard (Tuple card quantity) counts =
-  Lens.over (at card <<< Iso.non 0) (throwAdd card quantity)
-    counts
+  Either.Either Data.GameUpdateError Data.CountsByCardType
+incrementCard (Tuple card quantity) =
+  Either.note (Data.NegativeCardQuantity card Maybe.Nothing)
+    <<< overJust (at card <<< Iso.non 0) (nonNegativeAdd quantity)
 
 incrementCards ::
   forall f.
   Foldable f =>
   f Data.CardQuantity ->
   Data.CountsByCardType ->
-  Data.CountsByCardType
-incrementCards = flip $ foldr incrementCard
+  Either.Either Data.GameUpdateError Data.CountsByCardType
+incrementCards cards counts =
+  foldr (\cq ds -> ds >>= incrementCard cq) (Either.Right counts)
+    cards
 
 setDeckSection ::
   forall a b.
@@ -66,8 +87,8 @@ addCardsTo ::
   Data.DeckSectionLens ->
   f Data.CardQuantity ->
   Data.Deck' ->
-  Data.Deck'
-addCardsTo section cards = Lens.over section $ incrementCards cards
+  DeckUpdate
+addCardsTo section cards = overJust section $ incrementCards cards
 
 removeCardsFrom ::
   forall f.
@@ -76,7 +97,7 @@ removeCardsFrom ::
   Data.DeckSectionLens ->
   f Data.CardQuantity ->
   Data.Deck' ->
-  Data.Deck'
+  DeckUpdate
 removeCardsFrom section cards =
   addCardsTo section
     $ map (Lens.over Lens._2 negate) cards
@@ -88,9 +109,9 @@ incrementCardsTo ::
   Data.DeckSectionLens ->
   f Data.CardQuantity ->
   Data.GameState ->
-  Data.GameState
+  GameStateUpdate
 incrementCardsTo player deckSection cardQuantities =
-  Lens.over (Data.playerDeckSection player deckSection)
+  overJust (Data.playerDeckSection player deckSection)
     (incrementCards cardQuantities)
 
 transferCards ::
@@ -101,16 +122,16 @@ transferCards ::
   Data.DeckSectionLens ->
   f Data.CardQuantity ->
   Data.Deck' ->
-  Data.Deck'
+  DeckUpdate
 transferCards fromSection toSection cards deck =
-  removeCardsFrom fromSection cards
-    $ Lens.over toSection (incrementCards cards) deck
+  addCardsTo toSection cards deck
+    >>= removeCardsFrom fromSection cards
 
 transferAllCards ::
   Data.DeckSectionLens ->
   Data.DeckSectionLens ->
   Data.Deck' ->
-  Data.Deck'
+  DeckUpdate
 transferAllCards fromSection toSection deck =
   transferCards fromSection toSection cards
     deck
@@ -122,7 +143,7 @@ updateGameStateAndHistory ::
   String ->
   Data.DeckUpdate ->
   Data.GameState ->
-  Data.GameState
+  GameStateUpdate
 updateGameStateAndHistory line update state =
   Lens.over (Data.unpackGameState <<< Data._history)
     (List.Cons $ Tuple line update)
@@ -130,20 +151,22 @@ updateGameStateAndHistory line update state =
         update
         state
 
-endTurn :: Data.Deck' -> Data.Deck'
-endTurn =
-  transferAllCards Data._play Data._discard
-    <<< transferAllCards Data._hand Data._discard
 
-updateGameState :: Data.DeckUpdate -> Data.GameState -> Data.GameState
+doTurnCleanup :: Data.Deck' -> DeckUpdate
+doTurnCleanup =
+  transferAllCards Data._hand Data._discard
+    >=> transferAllCards Data._play Data._discard
+
+updateGameState :: Data.DeckUpdate -> Data.GameState -> GameStateUpdate
 updateGameState ( Data.DeckUpdate
     (Data.Player turnPlayer)
     Data.Turn
 ) state@(Data.GameState state') =
   updateCurrentTurn
-    $ Maybe.fromMaybe state
-    $ cleanupState
-    <$> state'.hasCurrentTurn
+    <$> ( Maybe.fromMaybe (Either.Right state)
+          $ cleanupState
+          <$> state'.hasCurrentTurn
+      )
   where
   newTurnPlayer =
     Maybe.fromMaybe (Data.Player turnPlayer)
@@ -169,13 +192,14 @@ updateGameState ( Data.DeckUpdate
             _
             (Data.DeckUpdate _ (Data.CardListUpdate { cards: cards }))
         ) -> cards
-        _ -> []
+        _ -> [] -- TODO: Error here?
 
       cleanupTransformation =
-        addCardsTo Data._hand lastCardsDrawn <<< endTurn
-          <<< removeCardsFrom Data._hand lastCardsDrawn
+        removeCardsFrom Data._hand lastCardsDrawn
+          >=> doTurnCleanup
+          >=> addCardsTo Data._hand lastCardsDrawn
     in
-      Lens.over (Data.playerDeck cleanupTurnPlayer) cleanupTransformation state
+      overJust (Data.playerDeck cleanupTurnPlayer) cleanupTransformation state
 
 updateGameState (Data.DeckUpdate player Data.Shuffles) state =
   let
@@ -186,7 +210,7 @@ updateGameState (Data.DeckUpdate player Data.Shuffles) state =
 
     shuffled = incrementCardsTo player Data._deck discard state
   in
-    setDeckSection player Data._discard Map.empty shuffled
+    setDeckSection player Data._discard Map.empty <$> shuffled
 
 updateGameState ( Data.DeckUpdate
     player
@@ -202,14 +226,13 @@ updateGameState ( Data.DeckUpdate
       Data.Returns -> removeFromHand unit
       Data.Topdecks -> mv Data._hand Data._deck
       Data.Trashes -> removeFromHand unit
-      _ -> state
+      _ -> Either.Right state
   )
   where
   cards = Array.filter ((_ /= Data.Card "card") <<< Tuple.fst) cards'
 
-  overPlayerDeck = Lens.over $ Data.playerDeck player
-
-  overState action = overPlayerDeck action state
+  overState :: forall f. Functor f => (Data.Deck' -> f Data.Deck') -> f Data.GameState
+  overState action = overJust (Data.playerDeck player) action state
 
   move ::
     forall f.
@@ -218,14 +241,14 @@ updateGameState ( Data.DeckUpdate
     f Data.CardQuantity ->
     Data.DeckSectionLens ->
     Data.DeckSectionLens ->
-    Data.GameState
+    GameStateUpdate
   move c source dest = overState $ transferCards source dest c
 
-  mv :: Data.DeckSectionLens -> Data.DeckSectionLens -> Data.GameState
+  mv :: Data.DeckSectionLens -> Data.DeckSectionLens -> GameStateUpdate
   mv = move cards
 
-  gainTo :: Data.DeckSectionLens -> Data.GameState
+  gainTo :: Data.DeckSectionLens -> GameStateUpdate
   gainTo lens = incrementCardsTo player lens cards state
 
-  removeFromHand :: Unit -> Data.GameState
+  removeFromHand :: Unit -> GameStateUpdate
   removeFromHand _ = overState $ removeCardsFrom Data._hand cards

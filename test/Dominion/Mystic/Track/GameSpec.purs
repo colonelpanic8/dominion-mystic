@@ -2,9 +2,11 @@ module Dominion.Mystic.Track.GameSpec where
 
 import Control.Monad.State.Class (class MonadState, modify_, gets)
 import Control.Monad.State.Trans (runStateT)
+import Data.Either as Either
 import Data.Foldable (foldl)
 import Data.Lens as Lens
 import Data.Map as Map
+import Data.Maybe as Maybe
 import Data.String as String
 import Data.String.Pattern as Pattern
 import Data.Traversable (traverse_)
@@ -23,6 +25,9 @@ processLines ::
   m Unit
 processLines input = traverse_ processLine $ String.split (Pattern.Pattern "\n") input
 
+rightToMaybe :: forall a b. Either.Either a b -> Maybe.Maybe b
+rightToMaybe = Either.either (const Maybe.Nothing) Maybe.Just
+
 processLine ::
   forall m.
   MonadState Data.GameState m =>
@@ -30,7 +35,9 @@ processLine ::
   m Unit
 processLine line =
   modify_ \gameState ->
-    foldl (flip $ Game.updateGameStateAndHistory line) gameState
+    Either.either (const gameState) identity
+      $ foldl (\state update -> state >>= Game.updateGameStateAndHistory line update)
+          (Either.Right gameState)
       $ Parse.getDeckUpdates line
 
 trackGameSpec :: Spec.Spec Unit
@@ -124,16 +131,14 @@ E draws 2 Coppers, 2 Estates and an Inventor.
 
 Turn 1 - Lord Rattington
 """
-        deckSectionEquals "E" Data._deck []
         deckSectionEquals "E" Data._play []
         deckSectionEquals "E" Data._hand
           [ c 2 "Copper"
           , c 2 "Estate"
           , c 1 "Inventor"
           ]
-        deckSectionEquals "E" Data._discard
+        deckSectionEquals "E" Data._deck
           [ c 4 "Copper"
-          , c 1 "Inventor"
           , c 1 "Silver"
           , c 1 "Goat"
           ]
