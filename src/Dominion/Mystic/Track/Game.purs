@@ -19,7 +19,13 @@ import Effect.Exception.Unsafe as Unsafe
 throwAdd :: Data.Card -> Int -> Int -> Int
 throwAdd (Data.Card card) a b =
   if sum < 0 then
-    Unsafe.unsafeThrow $ "Got a negative with " <> card <> " left: " <> show a <> " right: " <> show b
+    Unsafe.unsafeThrow
+      $ "Got a negative with "
+      <> card
+      <> " left: "
+      <> show a
+      <> " right: "
+      <> show b
   else
     sum
   where
@@ -105,12 +111,18 @@ transferAllCards ::
   Data.DeckSectionLens ->
   Data.Deck' ->
   Data.Deck'
-transferAllCards fromSection toSection deck = transferCards fromSection toSection cards deck
+transferAllCards fromSection toSection deck =
+  transferCards fromSection toSection cards
+    deck
   where
   cards :: Array Data.CardQuantity
   cards = Map.toUnfoldable $ Lens.view fromSection deck
 
-updateGameStateAndHistory :: String -> Data.DeckUpdate -> Data.GameState -> Data.GameState
+updateGameStateAndHistory ::
+  String ->
+  Data.DeckUpdate ->
+  Data.GameState ->
+  Data.GameState
 updateGameStateAndHistory line update state =
   Lens.over (Data.unpackGameState <<< Data._history)
     (List.Cons $ Tuple line update)
@@ -124,7 +136,10 @@ endTurn =
     <<< transferAllCards Data._hand Data._discard
 
 updateGameState :: Data.DeckUpdate -> Data.GameState -> Data.GameState
-updateGameState (Data.DeckUpdate (Data.Player turnPlayer) Data.Turn) state@(Data.GameState state') =
+updateGameState ( Data.DeckUpdate
+    (Data.Player turnPlayer)
+    Data.Turn
+) state@(Data.GameState state') =
   updateCurrentTurn
     $ Maybe.fromMaybe state
     $ cleanupState
@@ -149,7 +164,11 @@ updateGameState (Data.DeckUpdate (Data.Player turnPlayer) Data.Turn) state@(Data
         _ -> false
 
       lastCardsDrawn = case find isTurnDraw state'.history of
-        Maybe.Just (Tuple.Tuple _ (Data.DeckUpdate _ (Data.CardListUpdate { cards: cards }))) -> cards
+        Maybe.Just
+          ( Tuple.Tuple
+            _
+            (Data.DeckUpdate _ (Data.CardListUpdate { cards: cards }))
+        ) -> cards
         _ -> []
 
       cleanupTransformation =

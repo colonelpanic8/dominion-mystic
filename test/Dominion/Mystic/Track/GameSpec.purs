@@ -95,7 +95,7 @@ Turn 1 - Lord Rattington
           , c 1 "Estate"
           , c 1 "Inventor"
           ]
-      it "handles the crazy interaction between shuffling and drawing" do
+      it "handles the interaction between shuffling and drawing" do
         processLines
           """
 L starts with a Goat.
