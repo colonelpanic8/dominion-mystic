@@ -72,6 +72,7 @@ data CardListUpdateType
   | Draws
   | Exiles
   | Gains
+  | Inserts
   | LooksAt
   | Plays
   | PutsIntoHand
@@ -131,6 +132,9 @@ exilesUpdate = mkCardListUpdate Exiles
 
 gainsUpdate :: Player -> CardList -> DeckUpdate
 gainsUpdate = mkCardListUpdate Gains
+
+insertsUpdate :: Player -> CardList -> DeckUpdate
+insertsUpdate = mkCardListUpdate Inserts
 
 looksAtUpdate :: Player -> CardList -> DeckUpdate
 looksAtUpdate = mkCardListUpdate LooksAt

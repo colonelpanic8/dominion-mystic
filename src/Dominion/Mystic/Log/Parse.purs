@@ -5,6 +5,7 @@ import Data.Array as Array
 import Data.Either (either)
 import Data.Formatter.Parser.Number (parseInteger)
 import Data.List as List
+import Data.Maybe as Maybe
 import Data.String.CodeUnits as SCU
 import Data.Tuple as Tuple
 import Dominion.Mystic.Data as Data
@@ -20,23 +21,25 @@ getDeckUpdates input = either (const []) identity $ Parser.runParser input parse
 parseLine :: Parser String (Array Data.DeckUpdate)
 parseLine = do
   String.skipSpaces
-  Combinators.choice
-    [ Combinators.try parseShuffle
-    , Combinators.try parseTurn
-    , Combinators.try parseWish
-    , parseCardListAction Data.discardsUpdate "discards"
-    , parseCardListAction Data.drawsUpdate "draws"
-    , parseCardListAction Data.exilesUpdate "exiles"
-    , parseCardListAction Data.gainsUpdate "gains"
-    , parseCardListAction Data.gainsUpdate "starts with"
-    , parseCardListAction Data.gainsUpdate "buys and gains"
-    , parseCardListAction Data.looksAtUpdate "looks at"
-    , parseCardListAction Data.playsUpdate "plays"
-    , parseCardListAction Data.returnsUpdate "returns"
-    , parseCardListAction Data.revealsUpdate "reveals"
-    , parseCardListAction Data.topdecksUpdate "topdecks"
-    , parseCardListAction Data.trashesUpdate "trashes"
-    ]
+  flip Combinators.withErrorMessage "Could not parse line"
+    $ Combinators.choice
+        [ Combinators.try parseShuffle
+        , Combinators.try parseTurn
+        , Combinators.try parseWish
+        , parseCardListAction Data.discardsUpdate "discards"
+        , parseCardListAction Data.drawsUpdate "draws"
+        , parseCardListAction Data.exilesUpdate "exiles"
+        , parseCardListAction Data.gainsUpdate "buys and gains"
+        , parseCardListAction Data.gainsUpdate "gains"
+        , parseCardListAction Data.gainsUpdate "starts with"
+        , parseCardListAction Data.looksAtUpdate "looks at"
+        , parseCardListAction Data.playsUpdate "plays"
+        , parseCardListAction Data.revealsUpdate "reveals"
+        , parseCardListAction Data.topdecksUpdate "topdecks"
+        , parseCardListAction Data.trashesUpdate "trashes"
+        , parseCardListActionWithSuffix Data.insertsUpdate "inserts" $ Maybe.Just " into their deck"
+        , parseCardListActionWithSuffix Data.returnsUpdate "returns" $ Maybe.Just " to the"
+        ]
 
 parsePlayer :: Parser String Data.Player
 parsePlayer = Data.Player <$> SCU.fromCharArray <$> Array.many alphaNum
@@ -63,12 +66,16 @@ parseCardListAction ::
   (Data.Player -> Data.CardList -> Data.DeckUpdate) ->
   String ->
   Parser String (Array Data.DeckUpdate)
-parseCardListAction constructor actionString = parseCardListActionWithSuffix constructor actionString ""
+parseCardListAction constructor actionString =
+  parseCardListActionWithSuffix
+    constructor
+    actionString
+    Maybe.Nothing
 
 parseCardListActionWithSuffix ::
   (Data.Player -> Data.CardList -> Data.DeckUpdate) ->
   String ->
-  String ->
+  Maybe.Maybe String ->
   Parser String (Array Data.DeckUpdate)
 parseCardListActionWithSuffix constructor actionString suffixString =
   pure
@@ -77,22 +84,24 @@ parseCardListActionWithSuffix constructor actionString suffixString =
         String.skipSpaces
         skipString actionString
         String.skipSpaces
-        cardList <- parseCardList
-        skipString suffixString
+        cardList <- parseCardList $ Array.fromFoldable $ map skipString suffixString
         pure $ constructor player cardList
 
-cardSplitMatcher :: Parser String String
-cardSplitMatcher =
+cardSplitMatcher :: Array (Parser String Unit) -> Parser String Unit
+cardSplitMatcher additional =
   Combinators.choice
-    [ String.string ", "
-    , String.string "."
-    , String.string " and "
-    , String.string " to " -- Hack for e.g. "E returns an Estate to the Estate pile."
-    , String.eof *> pure ""
-    ]
+    $ [ skipString ", "
+      , skipString "."
+      , skipString " and "
+      , String.eof
+      ]
+    <> additional
 
-parseCardList :: Parser String Data.CardList
-parseCardList = map dePluralize <$> Array.many parseCardNameQuantity
+parseCardList :: Array (Parser String Unit) -> Parser String Data.CardList
+parseCardList additionalSplitMatchers =
+  map dePluralize
+    <$> Array.many
+        (parseCardNameQuantity additionalSplitMatchers)
 
 dePluralize :: Tuple.Tuple Int String -> Data.CardQuantity
 dePluralize info = Tuple.Tuple card quantity
@@ -105,8 +114,8 @@ dePluralize info = Tuple.Tuple card quantity
     else
       Data.Card $ Tuple.snd info
 
-parseCardNameQuantity :: Parser String (Tuple.Tuple Int String)
-parseCardNameQuantity = do
+parseCardNameQuantity :: Array (Parser String Unit) -> Parser String (Tuple.Tuple Int String)
+parseCardNameQuantity additionalSplitMatchers = do
   quantity <-
     Combinators.choice
       [ (String.string "a " *> pure 1)
@@ -114,10 +123,10 @@ parseCardNameQuantity = do
       , parseInteger
       ]
   String.skipSpaces
-  cardName <- parseStringTill cardSplitMatcher
+  cardName <- parseStringTill $ cardSplitMatcher additionalSplitMatchers
   pure $ Tuple.Tuple quantity cardName
 
-parseStringTill :: Parser String String -> Parser String String
+parseStringTill :: forall a. Parser String a -> Parser String String
 parseStringTill stop =
   SCU.fromCharArray <<< List.toUnfoldable
     <$> Combinators.manyTill String.anyChar stop

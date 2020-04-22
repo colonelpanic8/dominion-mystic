@@ -111,33 +111,40 @@ parseLogSpec =
           "Turn 1 - EyeVanMaliceSon"
           $ Data.turnUpdate
           $ Data.Player "EyeVanMaliceSon"
+      it "handles inserts" do
+        expectParseLine
+          "E inserts an Ambassador into their deck."
+          $ u Data.Inserts "E"
+          $ [ c 1 "Ambassador" ]
     describe "parseCardsList" do
       it "handles a list of cards separated by commas and an \"and\"" do
-        expectSuccessfulParsing Parse.parseCardList
+        expectSuccessfulParsing parseCardList
           "a Hovel, a Necropolis and an Overgrown Estate."
           shelters
       it "handles depluralization exceptions" do
-        expectSuccessfulParsing Parse.parseCardList
+        expectSuccessfulParsing parseCardList
           "3 Nobles, a Hovel."
           [ c 3 "Nobles"
           , c 1 "Hovel"
           ]
       it "handles pluralization exceptions" do
-        expectSuccessfulParsing Parse.parseCardList
+        expectSuccessfulParsing parseCardList
           "3 Emporia, a Hovel."
           [ c 3 "Emporium"
           , c 1 "Hovel"
           ]
       it "handles quantities of a card other than one and depluralizes" do
-        expectSuccessfulParsing Parse.parseCardList
+        expectSuccessfulParsing parseCardList
           "3 Coppers, a Hovel and an Overgrown Estate."
           [ c 3 "Copper"
           , c 1 "Hovel"
           , c 1 "Overgrown Estate"
           ]
       it "can handle a list with no terminating period" do
-        expectSuccessfulParsing Parse.parseCardList
+        expectSuccessfulParsing parseCardList
           "3 Coppers and 2 Horses"
           [ c 3 "Copper"
           , c 2 "Horse"
           ]
+  where
+  parseCardList = Parse.parseCardList []
