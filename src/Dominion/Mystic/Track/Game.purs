@@ -147,10 +147,18 @@ updateGameStateAndHistory ::
 updateGameStateAndHistory line update state =
   Lens.over (Data.unpackGameState <<< Data._history)
     (List.Cons $ Tuple line update)
-    $ updateGameState
-        update
-        state
+    <$> (tryCleanup currentPlayer $ updateGameState update state)
+  where
+  currentPlayer = (Lens.view (Data.unpackGameState <<< Data._hasCurrentTurn) state)
 
+  tryCleanup (Maybe.Just player) (Either.Left (Data.NegativeCardQuantity _ _)) =
+    overJust (Data.playerDeck player)
+      doTurnCleanup
+      state
+      >>= updateGameState (Data.DeckUpdate player Data.Shuffles)
+      >>= updateGameState update
+
+  tryCleanup _ r = r
 
 doTurnCleanup :: Data.Deck' -> DeckUpdate
 doTurnCleanup =
