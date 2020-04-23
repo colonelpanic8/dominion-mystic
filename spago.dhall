@@ -10,6 +10,7 @@ You can edit this file as you like.
   , "effect"
   , "exceptions"
   , "formatters"
+  , "ordered-collections"
   , "parsing"
   , "profunctor-lenses"
   , "psci-support"

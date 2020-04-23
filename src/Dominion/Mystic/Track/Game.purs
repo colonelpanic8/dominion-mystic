@@ -1,7 +1,6 @@
 module Dominion.Mystic.Track.Game where
 
 import Prelude
-import Data.Array as Array
 import Data.Either as Either
 import Data.Foldable (foldr, class Foldable, find)
 import Data.Lens as Lens
@@ -10,7 +9,6 @@ import Data.Lens.Iso as Iso
 import Data.List as List
 import Data.Map as Map
 import Data.Maybe as Maybe
-import Data.Profunctor.Choice (left)
 import Data.String as String
 import Data.Tuple (Tuple(..))
 import Data.Tuple as Tuple
@@ -55,7 +53,7 @@ incrementCard ::
   Data.CountsByCardType ->
   Either.Either Data.GameUpdateError Data.CountsByCardType
 incrementCard (Tuple card quantity) =
-  Either.note (Data.NegativeCardQuantity card Maybe.Nothing)
+  Either.note (Data.NegativeCardQuantity { card: card, section: Maybe.Nothing, update: Maybe.Nothing })
     <<< overJust (at card <<< Iso.non 0) (nonNegativeAdd quantity)
 
 incrementCards ::
@@ -139,31 +137,39 @@ transferAllCards fromSection toSection deck =
   cards :: Array Data.CardQuantity
   cards = Map.toUnfoldable $ Lens.view fromSection deck
 
+doTurnCleanup :: Data.Deck' -> DeckUpdate
+doTurnCleanup =
+  transferAllCards Data._hand Data._discard
+    >=> transferAllCards Data._play Data._discard
+
+shuffleDeck :: Data.Deck' -> DeckUpdate
+shuffleDeck = transferAllCards Data._discard Data._deck
+
 updateGameStateAndHistory ::
   String ->
   Data.DeckUpdate ->
   Data.GameState ->
   GameStateUpdate
-updateGameStateAndHistory line update state =
-  Lens.over (Data.unpackGameState <<< Data._history)
-    (List.Cons $ Tuple line update)
-    <$> (tryCleanup currentPlayer $ updateGameState update state)
-  where
-  currentPlayer = (Lens.view (Data.unpackGameState <<< Data._hasCurrentTurn) state)
+updateGameStateAndHistory line update@(Data.DeckUpdate updatePlayer _) state
+  | Data.shouldIgnoreUpdate update state = Either.Right state
+  | Data.hasAnonymousCards update = Either.Right $ Data.ignorePlayer updatePlayer state
+  | otherwise =
+    Lens.over (Data.unpackGameState <<< Data._history)
+      (List.Cons $ Tuple line update)
+      <$> (tryCleanup currentPlayer $ updateGameState update state)
+    where
+    currentPlayer = (Lens.view (Data.unpackGameState <<< Data._hasCurrentTurn) state)
 
-  tryCleanup (Maybe.Just player) (Either.Left (Data.NegativeCardQuantity _ _)) =
-    overJust (Data.playerDeck player)
-      doTurnCleanup
-      state
-      >>= updateGameState (Data.DeckUpdate player Data.Shuffles)
-      >>= updateGameState update
+    tryCleanup (Maybe.Just player) ( Either.Left
+        (Data.NegativeCardQuantity _)
+    ) =
+      overJust (Data.playerDeck player)
+        doTurnCleanup
+        state
+        >>= updateGameState (Data.DeckUpdate player Data.Shuffles)
+        >>= updateGameState update
 
-  tryCleanup _ r = r
-
-doTurnCleanup :: Data.Deck' -> DeckUpdate
-doTurnCleanup =
-  transferAllCards Data._hand Data._discard
-    >=> transferAllCards Data._play Data._discard
+    tryCleanup _ r = r
 
 updateGameState :: Data.DeckUpdate -> Data.GameState -> GameStateUpdate
 updateGameState ( Data.DeckUpdate
@@ -171,11 +177,12 @@ updateGameState ( Data.DeckUpdate
     Data.Turn
 ) state@(Data.GameState state') =
   updateCurrentTurn
-    <$> ( Maybe.fromMaybe (Either.Right state)
-          $ cleanupState
-          <$> state'.hasCurrentTurn
+    <$> ( Maybe.maybe (Either.Right state)
+          cleanupState
+          state'.hasCurrentTurn
       )
   where
+  -- Remove the need to do this lookup
   newTurnPlayer =
     Maybe.fromMaybe (Data.Player turnPlayer)
       $ find (\(Data.Player p) -> String.take (String.length p) turnPlayer == p)
@@ -188,41 +195,60 @@ updateGameState ( Data.DeckUpdate
   cleanupState cleanupTurnPlayer =
     let
       isTurnDraw i = case i of
-        ( Tuple.Tuple
-            _
-            (Data.DeckUpdate dPlayer (Data.CardListUpdate { type: Data.Draws }))
+        ( Data.DeckUpdate
+            dPlayer
+            (Data.CardListUpdate { type: Data.Draws })
         ) -> dPlayer == cleanupTurnPlayer
         _ -> false
 
-      lastCardsDrawn = case find isTurnDraw state'.history of
-        Maybe.Just
+      didDrawTriggerShuffle :: List.List (Tuple String Data.DeckUpdate) -> Boolean
+      didDrawTriggerShuffle ( List.Cons
           ( Tuple.Tuple
             _
-            (Data.DeckUpdate _ (Data.CardListUpdate { cards: cards }))
-        ) -> cards
-        _ -> [] -- TODO: Error here?
+            ( Data.DeckUpdate
+              shufflePlayer
+              Data.Shuffles
+          )
+        )
+          _
+      ) = shufflePlayer == cleanupTurnPlayer
+
+      didDrawTriggerShuffle _ = false
+
+      rewindToDraw :: List.List (Tuple String Data.DeckUpdate) -> Tuple.Tuple Data.CardList Boolean
+      rewindToDraw (List.Cons (Tuple.Tuple _ draw) remaining) =
+        if isTurnDraw draw then
+          Tuple.Tuple (Data.getCards draw) (didDrawTriggerShuffle remaining)
+        else
+          rewindToDraw remaining
+
+      -- XXX: This case should never be reached. Error here?
+      rewindToDraw _ = Tuple.Tuple [] false
+
+      Tuple.Tuple lastCardsDrawn drawTriggeredShuffle =
+        rewindToDraw
+          $ Lens.view (Data.unpackGameState <<< Data._history) state
+
+      cleanupAction =
+        if drawTriggeredShuffle then
+          doTurnCleanup >=> shuffleDeck
+        else
+          doTurnCleanup
 
       cleanupTransformation =
         removeCardsFrom Data._hand lastCardsDrawn
-          >=> doTurnCleanup
+          >=> cleanupAction
           >=> addCardsTo Data._hand lastCardsDrawn
     in
       overJust (Data.playerDeck cleanupTurnPlayer) cleanupTransformation state
 
 updateGameState (Data.DeckUpdate player Data.Shuffles) state =
-  let
-    discard :: Data.CardList
-    discard =
-      Map.toUnfoldable
-        $ Lens.view (Data.playerDeckSection player Data._discard) state
-
-    shuffled = incrementCardsTo player Data._deck discard state
-  in
-    setDeckSection player Data._discard Map.empty <$> shuffled
+  overJust (Data.playerDeck player) shuffleDeck
+    state
 
 updateGameState ( Data.DeckUpdate
     player
-    (Data.CardListUpdate { type: t, cards: cards' })
+    (Data.CardListUpdate { type: t, cards: cards })
 ) state =
   ( case t of
       Data.Discards -> mv Data._hand Data._discard
@@ -237,8 +263,6 @@ updateGameState ( Data.DeckUpdate
       _ -> Either.Right state
   )
   where
-  cards = Array.filter ((_ /= Data.Card "card") <<< Tuple.fst) cards'
-
   overState :: forall f. Functor f => (Data.Deck' -> f Data.Deck') -> f Data.GameState
   overState action = overJust (Data.playerDeck player) action state
 

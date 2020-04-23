@@ -1,6 +1,8 @@
 module Dominion.Mystic.Data where
 
 import Prelude
+import Data.Bifunctor (lmap)
+import Data.Foldable (find)
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 import Data.Lens as Lens
@@ -10,11 +12,13 @@ import Data.Lens.Record as Record
 import Data.List as List
 import Data.Map as Map
 import Data.Maybe as Maybe
+import Data.Profunctor.Strong (class Strong)
+import Data.Set as Set
 import Data.String as String
 import Data.String.Pattern (Pattern(..))
 import Data.Symbol (SProxy(..))
 import Data.Tuple (Tuple(..))
-import Data.Profunctor.Strong (class Strong)
+import Data.Tuple as Tuple
 
 newtype Card
   = Card String
@@ -157,6 +161,17 @@ topdecksUpdate = mkCardListUpdate Topdecks
 trashesUpdate :: Player -> CardList -> DeckUpdate
 trashesUpdate = mkCardListUpdate Trashes
 
+getCards :: DeckUpdate -> CardList
+getCards (DeckUpdate _ (CardListUpdate { cards: cards })) = cards
+
+getCards _ = []
+
+hasAnonymousCards :: DeckUpdate -> Boolean
+hasAnonymousCards update =
+  Maybe.isJust
+    $ find ((_ == Card "card") <<< Tuple.fst)
+    $ getCards update
+
 type CountsByCardType
   = Map.Map Card Int
 
@@ -228,6 +243,7 @@ type GameState'
   = { stateByPlayer :: Map.Map Player PlayerState
     , history :: List.List (Tuple String DeckUpdate)
     , hasCurrentTurn :: Maybe.Maybe Player
+    , playersToIgnore :: Set.Set Player
     }
 
 data GameState
@@ -254,13 +270,28 @@ _history = Record.prop (SProxy :: SProxy "history")
 _hasCurrentTurn :: forall a r. Lens.Lens' { hasCurrentTurn :: a | r } a
 _hasCurrentTurn = Record.prop (SProxy :: SProxy "hasCurrentTurn")
 
+_playersToIgnore :: forall a r. Lens.Lens' { playersToIgnore :: a | r } a
+_playersToIgnore = Record.prop (SProxy :: SProxy "playersToIgnore")
+
 emptyGameState :: GameState
 emptyGameState =
   GameState
     { stateByPlayer: Map.empty
     , history: List.Nil
     , hasCurrentTurn: Maybe.Nothing
+    , playersToIgnore: Set.empty
     }
+
+ignorePlayer :: Player -> GameState -> GameState
+ignorePlayer player = Lens.over (unpackGameState <<< _playersToIgnore) $ Set.insert player
+
+shouldIgnoreUpdate :: DeckUpdate -> GameState -> Boolean
+shouldIgnoreUpdate (DeckUpdate player (CardListUpdate { cards: cards })) = playerIsIgnored player
+
+shouldIgnoreUpdate _ = const false
+
+playerIsIgnored :: Player -> GameState -> Boolean
+playerIsIgnored player = Set.member player <<< Lens.view (unpackGameState <<< _playersToIgnore)
 
 playerDeck :: Player -> Lens.Lens' GameState Deck'
 playerDeck player =
@@ -282,7 +313,11 @@ type DeckSectionLens
   = Lens.Lens' Deck' DeckSection
 
 data GameUpdateError
-  = NegativeCardQuantity Card (Maybe.Maybe String)
+  = NegativeCardQuantity
+    { card :: Card
+    , section :: Maybe.Maybe String
+    , update :: Maybe.Maybe DeckUpdate
+    }
 
 derive instance genericGameUpdateError :: Generic GameUpdateError _
 
