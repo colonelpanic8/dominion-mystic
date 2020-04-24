@@ -30,9 +30,11 @@ main = do
               doUpdate update = do
                 state <- Ref.read gameState
                 case updateGameStateAndHistory line update state of
-                  Either.Left err -> Console.logShow err
+                  Either.Left err -> do
+                    Console.log $ "There was an error handling: " <> line
+                    Console.logShow err
                   Either.Right updated -> Ref.write updated gameState
             traverse_ doUpdate updates
-            Data.GameState state <- Ref.read gameState
-            Console.logShow $ state.stateByPlayer
+            state <- Ref.read gameState
+            Console.log $ Data.prettyGameStateString state
   DOM.onLogContainerElement document (handleNodeElements <<< Element.toNode)

@@ -1,7 +1,7 @@
 module Dominion.Mystic.Data where
 
 import Prelude
-import Data.Bifunctor (lmap)
+import Control.Monad.Writer as Writer
 import Data.Foldable (find)
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
@@ -17,6 +17,7 @@ import Data.Set as Set
 import Data.String as String
 import Data.String.Pattern (Pattern(..))
 import Data.Symbol (SProxy(..))
+import Data.Traversable (traverse_, intercalate)
 import Data.Tuple (Tuple(..))
 import Data.Tuple as Tuple
 
@@ -236,6 +237,32 @@ emptyDeck =
     , island: Map.empty
     }
 
+prettyDeckString :: Deck' -> String
+prettyDeckString deck =
+  Writer.execWriter do
+    prettyDeckSection "Discard" _discard
+    prettyDeckSection "Deck" _deck
+    prettyDeckSection "Hand" _hand
+    prettyDeckSection "Play" _play
+  where
+  prettyDeckSection sectionName sectionLens = do
+    Writer.tell sectionName
+    Writer.tell ":"
+    Writer.tell "\n"
+    let
+      cards = Map.toUnfoldable $ Lens.view sectionLens deck
+    if List.length cards == 0 then
+      Writer.tell " (Nothing)\n"
+    else
+      traverse_ prettyCardQuantity $ cards
+
+  prettyCardQuantity (Tuple.Tuple (Card name) count) = do
+    Writer.tell " - "
+    Writer.tell $ show count
+    Writer.tell " "
+    Writer.tell name
+    Writer.tell "\n"
+
 type PlayerState
   = Deck
 
@@ -273,6 +300,14 @@ _hasCurrentTurn = Record.prop (SProxy :: SProxy "hasCurrentTurn")
 _playersToIgnore :: forall a r. Lens.Lens' { playersToIgnore :: a | r } a
 _playersToIgnore = Record.prop (SProxy :: SProxy "playersToIgnore")
 
+knownPlayers :: GameState -> Set.Set Player
+knownPlayers = Map.keys <<< Lens.view (unpackGameState <<< _stateByPlayer)
+
+activePlayers :: GameState -> Set.Set Player
+activePlayers state =
+  Set.difference (knownPlayers state)
+    $ Lens.view (unpackGameState <<< _playersToIgnore) state
+
 emptyGameState :: GameState
 emptyGameState =
   GameState
@@ -292,6 +327,13 @@ shouldIgnoreUpdate _ = const false
 
 playerIsIgnored :: Player -> GameState -> Boolean
 playerIsIgnored player = Set.member player <<< Lens.view (unpackGameState <<< _playersToIgnore)
+
+prettyGameStateString :: GameState -> String
+prettyGameStateString state =
+  intercalate "\n" $ map getDeckString
+    $ (Set.toUnfoldable $ activePlayers state :: List.List _)
+  where
+  getDeckString player = prettyDeckString $ Lens.view (playerDeck player) state
 
 playerDeck :: Player -> Lens.Lens' GameState Deck'
 playerDeck player =

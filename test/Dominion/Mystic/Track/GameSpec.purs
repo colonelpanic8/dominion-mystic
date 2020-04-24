@@ -63,7 +63,7 @@ processLine line = do
       put newState
       when logState do
         Console.log line
-        Console.log $ show $ Lens.view (Data.playerDeck (Data.Player "E")) newState
+        Console.log $ Data.prettyGameStateString newState
 
 trackGameSpec :: Spec.Spec Unit
 trackGameSpec =
@@ -167,7 +167,7 @@ Turn 1 - Lord Rattington
           , c 1 "Silver"
           , c 1 "Goat"
           ]
-      it "shuffles cards discarded from playo even when the deck contained all drawn cards" do
+      it "shuffles cards discarded from play even when the deck contained all drawn cards" do
         processLines
           """
 E starts with 7 Coppers.
