@@ -158,7 +158,7 @@ updateGameStateAndHistory line update@(Data.DeckUpdate updatePlayer _) state
       (List.Cons $ Tuple line update)
       <$> (tryCleanup currentPlayer $ updateGameState update state)
     where
-    currentPlayer = (Lens.view (Data.unpackGameState <<< Data._hasCurrentTurn) state)
+    currentPlayer = Lens.view (Data.unpackGameState <<< Data._hasCurrentTurn) state
 
     tryCleanup (Maybe.Just player) ( Either.Left
         (Data.NegativeCardQuantity _)
@@ -182,7 +182,7 @@ updateGameState ( Data.DeckUpdate
           state'.hasCurrentTurn
       )
   where
-  -- Remove the need to do this lookup
+  -- TODO: Remove the need to do this lookup
   newTurnPlayer =
     Maybe.fromMaybe (Data.Player turnPlayer)
       $ find (\(Data.Player p) -> String.take (String.length p) turnPlayer == p)
