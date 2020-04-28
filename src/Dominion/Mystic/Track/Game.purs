@@ -20,14 +20,14 @@ type GameStateUpdate
 type DeckUpdate
   = Either.Either Data.GameUpdateError Data.Deck'
 
-overJust ::
+overF ::
   forall a b f.
   Functor f =>
   Lens.Lens' a b ->
   (b -> f b) ->
   a ->
   f a
-overJust lens fn v = flip (Lens.set lens) v <$> (fn $ Lens.view lens v)
+overF lens fn v = flip (Lens.set lens) v <$> (fn $ Lens.view lens v)
 
 nonNegativeAdd :: Int -> Int -> Maybe.Maybe Int
 nonNegativeAdd a b =
@@ -54,7 +54,7 @@ incrementCard ::
   Either.Either Data.GameUpdateError Data.CountsByCardType
 incrementCard (Tuple card quantity) =
   Either.note (Data.NegativeCardQuantity { card: card, section: Maybe.Nothing, update: Maybe.Nothing })
-    <<< overJust (at card <<< Iso.non 0) (nonNegativeAdd quantity)
+    <<< overF (at card <<< Iso.non 0) (nonNegativeAdd quantity)
 
 incrementCards ::
   forall f.
@@ -86,7 +86,7 @@ addCardsTo ::
   f Data.CardQuantity ->
   Data.Deck' ->
   DeckUpdate
-addCardsTo section cards = overJust section $ incrementCards cards
+addCardsTo section cards = overF section $ incrementCards cards
 
 removeCardsFrom ::
   forall f.
@@ -109,7 +109,7 @@ incrementCardsTo ::
   Data.GameState ->
   GameStateUpdate
 incrementCardsTo player deckSection cardQuantities =
-  overJust (Data.playerDeckSection player deckSection)
+  overF (Data.playerDeckSection player deckSection)
     (incrementCards cardQuantities)
 
 transferCards ::
@@ -163,7 +163,7 @@ updateGameStateAndHistory line update@(Data.DeckUpdate updatePlayer _) state
     tryCleanup (Maybe.Just player) ( Either.Left
         (Data.NegativeCardQuantity _)
     ) =
-      overJust (Data.playerDeck player)
+      overF (Data.playerDeck player)
         doTurnCleanup
         state
         >>= updateGameState (Data.DeckUpdate player Data.Shuffles)
@@ -240,10 +240,10 @@ updateGameState ( Data.DeckUpdate
           >=> cleanupAction
           >=> addCardsTo Data._hand lastCardsDrawn
     in
-      overJust (Data.playerDeck cleanupTurnPlayer) cleanupTransformation state
+      overF (Data.playerDeck cleanupTurnPlayer) cleanupTransformation state
 
 updateGameState (Data.DeckUpdate player Data.Shuffles) state =
-  overJust (Data.playerDeck player) shuffleDeck
+  overF (Data.playerDeck player) shuffleDeck
     state
 
 updateGameState ( Data.DeckUpdate
@@ -264,7 +264,7 @@ updateGameState ( Data.DeckUpdate
   )
   where
   overState :: forall f. Functor f => (Data.Deck' -> f Data.Deck') -> f Data.GameState
-  overState action = overJust (Data.playerDeck player) action state
+  overState action = overF (Data.playerDeck player) action state
 
   move ::
     forall f.
